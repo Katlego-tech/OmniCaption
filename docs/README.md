@@ -16,15 +16,21 @@ captioning pipeline that reads `/input/tasks.json`, generates styled captions pe
 | [04-testing-strategy](04-testing-strategy.md) | Always-green main, test gate, contract + golden-clip tests |
 | [05-amd-rocm-optimization](05-amd-rocm-optimization.md) | CTranslate2-HIP build, gfx targets, MI300X/vLLM tunables |
 | [06-judging-criteria](06-judging-criteria.md) | Track 2 scoring, runtime constraints, submission checklist |
-| [07-ibm-bob-spec-kit](07-ibm-bob-spec-kit.md) | IBM Bob + GitHub Spec-Kit lifecycle and generated artifacts |
+| [07-planning-workflow](07-planning-workflow.md) | How we plan: SPEC.md + PLAN.md + TASKS.md + STATUS.md |
 | [08-git-workflow](08-git-workflow.md) | Branch-only workflow, hooks, commit format, PR flow |
 | [09-research-summary](09-research-summary.md) | Condensed hackathon research summary |
-| [10-cross-ai-protocol](10-cross-ai-protocol.md) | How Bob + Claude + Gemini coordinate without collisions |
+| [10-cross-ai-protocol](10-cross-ai-protocol.md) | How Claude + Gemini coordinate without collisions |
 | [11-phase0-runbook](11-phase0-runbook.md) | Concrete "start here" runbook + learning checklist |
 | [12-project-structure](12-project-structure.md) | Repo layout and how to run each part |
 | [13-prompt-engineering-playbook](13-prompt-engineering-playbook.md) | The four style system prompts + PMP chain |
 | [14-optimization-suggestions](14-optimization-suggestions.md) | Forward-looking improvement proposals |
+| [15-data-model](15-data-model.md) | Entities, fields, validation, and the exact JSON shapes |
+| [16-io-contract](16-io-contract.md) | Authoritative `/input` & `/output` JSON schemas |
+| [17-pipeline-stages](17-pipeline-stages.md) | The 6-stage interface contract + VRAM handoff + fallbacks |
 | [deployment](deployment.md) | Build/tag/push linux/amd64 image + local smoke test |
+
+The top-level planning documents — [SPEC.md](../SPEC.md), [PLAN.md](../PLAN.md), [TASKS.md](../TASKS.md) —
+live in the repo root.
 
 ## Read these first, in order
 

@@ -1,14 +1,14 @@
-# CLAUDE.md — Tumo's entry point (IBM Bob + Claude)
+# CLAUDE.md — Tumo's entry point (Claude)
 
-You are Claude, working with **Tumo** on **OmniCaption**. You are a parallel assistant to IBM Bob,
-not a replacement for it. Bob owns the Spec-Kit `implement` step and is the system of record.
+You are Claude, working with **Tumo** on **OmniCaption**. You work alongside Gemini (Katlego's
+copilot); the two of you coordinate only through the shared-state files.
 
 ## Before you do anything
 
 Read, in this order:
 1. [STATUS.md](STATUS.md) — what's happening right now and who owns which lane.
 2. [AGENTS.md](AGENTS.md) — the universal contract (rules, git flow, Definition of Done).
-3. [docs/10-cross-ai-protocol.md](docs/10-cross-ai-protocol.md) — how Bob/Claude/Gemini share state.
+3. [docs/10-cross-ai-protocol.md](docs/10-cross-ai-protocol.md) — how Claude/Gemini share state.
 
 Then claim a lane in STATUS.md before you start editing.
 
@@ -21,21 +21,22 @@ budgets. The six stages: **Ingestion → Audio (Whisper) → Memory Reclamation 
 → Synthesis (Gemma 4 VLM) → Output.** Styles: `formal`, `sarcastic`, `humorous_tech`,
 `humorous_non_tech`.
 
+The plan lives in [PLAN.md](PLAN.md); the WHAT in [SPEC.md](SPEC.md); the task list in [TASKS.md](TASKS.md).
+
 ## What you (Claude) should do
 
 - **Research** and summarize (the source is `Hackathon Research for AI Video Captioning.pdf`).
 - **Scaffold** modules, write **tests first**, review diffs, write and tighten docs.
-- **Draft** spec / plan / tasks text for Bob to formalize — you propose, Bob ratifies.
-- Work the **same** [specs/tasks.md](specs/tasks.md) list everyone uses; one task at a time.
+- **Propose** edits to SPEC / PLAN / TASKS via PR — the team reviews and lands them.
+- Work the **same** [TASKS.md](TASKS.md) list everyone uses; one task at a time.
 - Keep [STATUS.md](STATUS.md) accurate after every step.
 
 ## What you must NOT do
 
 - **Never push to `main`.** Branch, PR, let the gate pass. (Pre-push hook enforces this.)
-- **Don't run `/speckit.implement`** — that is Bob's job.
 - Don't edit a file another lane has claimed in STATUS.md without coordinating.
 - **Don't invent caption content.** Ground every caption in the actual audio + frames. The humor
-  can be creative; the underlying facts cannot be fabricated. (Constitution Principle I.)
+  can be creative; the underlying facts cannot be fabricated. (Non-negotiable I in [PLAN.md](PLAN.md).)
 - Don't blow the budgets: ≤10 min run, <30 s/request, ≤10 GB image, AMD compute required.
 
 ## Locked stack (do not swap without a plan change)

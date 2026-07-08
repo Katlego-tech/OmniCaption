@@ -1,34 +1,39 @@
 # AGENTS.md — the OmniCaption contract
 
-This is the single contract every contributor follows — **human or AI, Bob, Claude, or Gemini**.
+This is the single contract every contributor follows — **human or AI, Claude or Gemini**.
 Read it before you touch anything. If a rule here conflicts with a habit, the rule wins.
 
 Entry points funnel here: [CLAUDE.md](CLAUDE.md) (Tumo) and [GEMINI.md](GEMINI.md) (Katlego) both
 say "read AGENTS.md first." This file is the source of truth for *how we work*; the
-[constitution](.specify/memory/constitution.md) is the source of truth for *what is non-negotiable*.
+**Non-negotiables** in [PLAN.md](PLAN.md) are the source of truth for *what cannot be compromised*.
 
 ---
 
 ## 1. Team & lanes
 
-| Person | Role | AI copilots |
-|--------|------|-------------|
-| **Katlego** | Team leader, repo owner (`Katlego-tech/OmniCaption`) | IBM Bob + Gemini |
-| **Tumo** | Co-builder | IBM Bob + Claude |
+| Person | Role | AI copilot |
+|--------|------|------------|
+| **Katlego** | Team leader, repo owner (`Katlego-tech/OmniCaption`) | Gemini |
+| **Tumo** | Co-builder | Claude |
 
 Both are full-stack on this project. We do **not** hard-partition file ownership; we coordinate with
 **lane labels** in [STATUS.md](STATUS.md) (e.g. `audio`, `vision`, `synthesis`, `container`, `docs`).
 Before working a lane, claim it in the STATUS.md "Current focus" table so two people don't collide.
 
-## 2. Multi-AI workflow
+## 2. How we plan
 
-- **IBM Bob is the system of record.** Bob drives the Spec-Kit lifecycle:
-  `/speckit.constitution → /speckit.specify → /speckit.clarify → /speckit.plan → /speckit.tasks → /speckit.implement`.
-- **Claude and Gemini run in parallel** as assistants — research, scaffolding, tests, review, docs,
-  drafting spec/plan text. They do **not** own `implement`; Bob does.
+Planning is driven directly by the team through four living documents — no external orchestrator:
+
+- [SPEC.md](SPEC.md) — the WHAT (user stories US1–US7, acceptance criteria).
+- [PLAN.md](PLAN.md) — the HOW (stack, non-negotiables, code layout, build phases).
+- [TASKS.md](TASKS.md) — the checkbox task list (`T001…T102`).
+- [STATUS.md](STATUS.md) — the live board.
+
+The full loop is in [docs/07-planning-workflow.md](docs/07-planning-workflow.md).
+
 - **Shared state lives in exactly three places:** [AGENTS.md](AGENTS.md) (rules),
-  [STATUS.md](STATUS.md) (live board), [specs/tasks.md](specs/tasks.md) (the checkbox task list).
-  Everything else is derived. If it isn't reflected in these three, it didn't happen.
+  [STATUS.md](STATUS.md) (live board), [TASKS.md](TASKS.md) (the task list). Everything else is
+  derived. If it isn't reflected in these three, it didn't happen.
 - **Single writer per task.** One task ID (`T0xx`) is worked by one person at a time. Claim it in
   STATUS.md before you start; release it when the PR merges.
 
@@ -53,18 +58,18 @@ See [docs/10-cross-ai-protocol.md](docs/10-cross-ai-protocol.md) for the collisi
 ## 5. Update STATUS.md every step
 
 After any meaningful step, update [STATUS.md](STATUS.md):
-1. Tick / add the relevant checkbox and task ID.
+1. Tick / add the relevant checkbox and task ID (in [TASKS.md](TASKS.md)).
 2. Update the lane's **Status** column and the phase timeline.
 3. Add a dated line to the **Log** at the bottom.
 
-Format the header line as: `_Last updated: YYYY-MM-DD — by <name> (via Bob|Claude|Gemini)_`.
+Format the header line as: `_Last updated: YYYY-MM-DD — by <name> (via Claude|Gemini)_`.
 
 ## 6. Grounding & honesty rules
 
 - **Caption only what the evidence supports.** A caption describes what the transcript and the
   keyframes actually show. No invented people, places, dialogue, or events — even in the humorous
   styles, the *joke* can be creative but the *facts* it riffs on must be real. This is
-  Principle I of the [constitution](.specify/memory/constitution.md).
+  **Non-negotiable I** in [PLAN.md](PLAN.md).
 - **Respect the budgets.** ≤10 min total runtime, <30 s per request, ≤10 GB image, <60 s startup,
   and the container **must provably use AMD compute** (absence = disqualification).
 - **Deterministic I/O.** The output must always be schema-valid JSON at `/output/results.json`,
@@ -78,10 +83,8 @@ Format the header line as: `_Last updated: YYYY-MM-DD — by <name> (via Bob|Cla
 OmniCaption/
 ├── README.md · AGENTS.md · CLAUDE.md · GEMINI.md   shared-state entry points
 ├── STATUS.md · STATUS.template.md                  the live board + its template
-├── docs/                     00–14 numbered planning docs + deployment.md
-├── specs/                    human seeds (spec/plan/tasks/constitution) +
-│   └── 001-omnicaption-captioning/   generated Spec-Kit artifacts
-├── .specify/                 Spec-Kit engine (memory/constitution.md + templates/)
+├── SPEC.md · PLAN.md · TASKS.md                    the planning documents
+├── docs/                     00–17 numbered planning docs + deployment.md
 ├── .claude/                  Claude permission allowlist
 ├── .github/workflows/ci.yml  the CI test gate
 ├── .githooks/pre-push        the local test gate + main-branch protection
@@ -97,7 +100,3 @@ A task is done when **all** of these hold:
 - [ ] Runs inside the budgets (no new OOM, no blown latency).
 - [ ] STATUS.md updated (checkbox + lane status + Log line); task ID referenced in the commit.
 - [ ] PR opened into `main`, CI green, reviewed by the other builder, merged.
-
-<!-- SPECKIT START -->
-Active feature: [specs/001-omnicaption-captioning/plan.md](specs/001-omnicaption-captioning/plan.md)
-<!-- SPECKIT END -->

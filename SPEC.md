@@ -1,9 +1,7 @@
-# Feature Specification: OmniCaption Stylistic Video Captioning Agent
+# OmniCaption — Specification (the WHAT)
 
-**Feature branch:** `001-omnicaption-captioning`
-**Status:** Draft (generated)
 **Track:** AMD Developer Hackathon (ACT II) — Track 2 (primary), Track 3 "Video-Oracle" (stretch)
-**Related artifacts:** [plan.md](plan.md) · [tasks.md](tasks.md) · [research.md](research.md) · [data-model.md](data-model.md) · [quickstart.md](quickstart.md) · [contracts/io-schemas.md](contracts/io-schemas.md) · [contracts/pipeline-stages.md](contracts/pipeline-stages.md) · [checklists/requirements.md](checklists/requirements.md)
+**Related:** [PLAN.md](PLAN.md) · [TASKS.md](TASKS.md) · [docs/15-data-model.md](docs/15-data-model.md) · [docs/16-io-contract.md](docs/16-io-contract.md) · [docs/17-pipeline-stages.md](docs/17-pipeline-stages.md) · [docs/09-research-summary.md](docs/09-research-summary.md)
 
 ---
 
@@ -30,8 +28,8 @@ The whole system is optimized to run inside hard runtime and memory budgets on *
 built to always emit *something schema-valid* for every requested style, even under failure.
 
 This specification describes **WHAT** OmniCaption must do and the criteria by which it is judged. The
-**HOW** (concrete stack, module layout, build phases) lives in [plan.md](plan.md) and
-[research.md](research.md).
+**HOW** (concrete stack, module layout, build phases) lives in [PLAN.md](PLAN.md) and
+[docs/09-research-summary.md](docs/09-research-summary.md).
 
 ### Goals
 
@@ -62,13 +60,13 @@ The **evaluation harness** is the sole runtime caller. It:
 4. Scores each `(clip, style)` on **Accuracy** (visual fidelity) and **Style Match** (tone).
 
 The harness never sees pipeline internals. Its entire contract is the two mounted JSON files, the
-exit code, and the wall-clock/resource budgets. See [contracts/io-schemas.md](contracts/io-schemas.md).
+exit code, and the wall-clock/resource budgets. See [docs/16-io-contract.md](docs/16-io-contract.md).
 
 ### Secondary actors
 
-- **The development team** (Katlego — leader, repo owner, IBM Bob + Gemini; Tumo — co-builder,
-  IBM Bob + Claude). They build, test, and iterate on the pipeline. IBM Bob is the system of record.
-  They need reproducible builds, a green `main`, and shared coordination state.
+- **The development team** (Katlego — leader, repo owner, works with Gemini; Tumo — co-builder,
+  works with Claude). They build, test, and iterate on the pipeline. They need reproducible builds, a
+  green `main`, and shared coordination state (see [AGENTS.md](AGENTS.md)).
 - **Track-3 "Video-Oracle" end users** (stretch only). Humans who issue natural-language search and
   question-answering queries against an indexed video corpus. Only relevant if US7 is pursued.
 
@@ -76,7 +74,7 @@ exit code, and the wall-clock/resource budgets. See [contracts/io-schemas.md](co
 
 ## User Stories
 
-Each story is independently testable and maps to a delivery phase in [tasks.md](tasks.md). Stories
+Each story is independently testable and maps to a delivery phase in [TASKS.md](TASKS.md). Stories
 US1–US6 form the **MVP** (a complete, scorable Track 2 submission). US7 is a stretch goal.
 
 ### US1 — Ingest tasks and video (priority: P1)
@@ -171,7 +169,7 @@ Acceptance criteria:
 
 - **AC6.1** The pipeline writes `/output/results.json` containing, for every task, a caption for every
   **requested and known** style, matching the output schema in
-  [contracts/io-schemas.md](contracts/io-schemas.md).
+  [docs/16-io-contract.md](docs/16-io-contract.md).
 - **AC6.2** The output is **schema-validated** before writing; a validation failure is repaired to a
   valid fallback shape rather than emitting invalid JSON.
 - **AC6.3** The process **exits `0`** on completion, even when individual tasks failed (their errors
@@ -218,7 +216,7 @@ These apply to the whole pipeline regardless of story.
 
 - Both model stages must **provably execute on AMD ROCm/HIP**. Absence of AMD compute is an automatic
   disqualification, so the pipeline logs the active device and fails loudly if no AMD device is
-  present in the enforced (non-dev) mode. See principle **V** in [plan.md](plan.md).
+  present in the enforced (non-dev) mode. See principle **V** in [PLAN.md](PLAN.md).
 
 ### CC4 — Faithfulness & grounding
 

@@ -1,12 +1,11 @@
 # Contract: Pipeline Stage Interfaces
 
-**Feature branch:** `001-omnicaption-captioning`
-**Related:** [../plan.md](../plan.md) · [../data-model.md](../data-model.md) · [io-schemas.md](io-schemas.md) · [../../../docs/01-architecture.md](../../../docs/01-architecture.md)
+**Related:** [../PLAN.md](../PLAN.md) · [15-data-model.md](15-data-model.md) · [16-io-contract.md](16-io-contract.md) · [01-architecture.md](01-architecture.md)
 
 This defines the interface contract between the **6 pipeline stages**. Every stage is a function that
 takes the shared `CaptionState` (plus stage-scoped resources) and returns the mutated state. The
 orchestrator (`app/pipeline/orchestrator.py`) runs them in order per task, owns error handling, and
-guarantees exit 0. `CaptionState` is defined in [../plan.md](../plan.md#pipeline-state-object).
+guarantees exit 0. `CaptionState` is defined in [../PLAN.md](../PLAN.md#pipeline-state-object).
 
 General signature:
 
@@ -83,7 +82,7 @@ and appends any non-fatal problem to `state.errors` (never raises past the orche
 
 ## VRAM handoff protocol (Audio → Vision/Synthesis)
 
-The single most important runtime invariant (constitution II). The two heavy models are **never
+The single most important runtime invariant (non-negotiable II). The two heavy models are **never
 co-resident**.
 
 ```
