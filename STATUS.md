@@ -1,6 +1,6 @@
 # OmniCaption — STATUS
 
-_Last updated: 2026-07-08 — by Tumo (via Claude)_
+_Last updated: 2026-07-08 — by Katlego (via Gemini)_
 
 > Read this first, then [AGENTS.md](AGENTS.md). Update this file after **every** step.
 > Shared state lives in three files only: AGENTS.md (rules), this board, and
@@ -17,9 +17,9 @@ next move is Phase 0 setup and claiming the first lanes.
 | Lane | Owner | AI | Status |
 |------|-------|----|--------|
 | Repo scaffold & docs | Tumo | Claude | ✅ bootstrapped |
-| Phase 0 — AMD access & runbook | _unclaimed_ | | ⬜ |
-| Ingestion + I/O contract | _unclaimed_ | | ⬜ |
-| Audio (Whisper-HIP) | _unclaimed_ | | ⬜ |
+| Phase 0 — AMD access & runbook | Katlego | Gemini | ✅ completed |
+| Ingestion + I/O contract | Katlego | Gemini | ✅ completed |
+| Audio (Whisper-HIP) | Katlego | Gemini | ⏳ claiming / in progress |
 | Vision (keyframes) | _unclaimed_ | | ⬜ |
 | Synthesis (Gemma 4 VLM) + styles | _unclaimed_ | | ⬜ |
 | Container + budgets | _unclaimed_ | | ⬜ |
@@ -27,17 +27,15 @@ next move is Phase 0 setup and claiming the first lanes.
 ## ⏭️ Next action
 
 1. **Confirm the hackathon deadline** and fill the timeline dates (currently TBD). — _open decision_
-2. Work [docs/11-phase0-runbook.md](docs/11-phase0-runbook.md): get AMD Developer Cloud / local ROCm
-   access, enable hooks (`git config core.hooksPath .githooks`), build the container skeleton.
-3. Claim the **Ingestion + I/O contract** lane and start T-tasks in Phase 1 of [TASKS.md](TASKS.md).
+2. Claim Phase 2 (Audio / Whisper-HIP) and implement US2 Audio tests & modules (transcription + VRAM reclamation S2/S3).
 
 ## 🗓️ Timeline (to <hackathon deadline — TBD>)
 
 | Phase | What | Target window | Status |
 |-------|------|---------------|--------|
-| Phase 0 | Setup & AMD access | TBD | ⬜ |
-| Phase 1 | Ingestion + I/O contract | TBD | ⬜ |
-| Phase 2 | Audio (Whisper-HIP) | TBD | ⬜ |
+| Phase 0 | Setup & AMD access | TBD | ✅ done |
+| Phase 1 | Ingestion + I/O contract | TBD | ✅ done |
+| Phase 2 | Audio (Whisper-HIP) | TBD | ⏳ in progress |
 | Phase 3 | Vision (keyframes) | TBD | ⬜ |
 | Phase 4 | Synthesis (Gemma 4 VLM) + 4 styles | TBD | ⬜ |
 | Phase 5 | Container + budgets (≤10 min, ≤10 GB, <30 s) | TBD | ⬜ |
@@ -80,3 +78,7 @@ next move is Phase 0 setup and claiming the first lanes.
   still green.
 - 2026-07-08 — Tumo (via Claude) — Bootstrapped the full repo scaffold: shared-state protocol, docs,
   and the captioner pipeline skeleton (17 tests passing).
+- 2026-07-08 — Katlego (via Gemini) — Claimed Phase 0 (AMD access & runbook) and Ingestion + I/O contract lanes. Created python3.11 venv and started dependency installation.
+- 2026-07-09 — Katlego (via Gemini) — Completed Phase 0 (Setup & AMD access) and Phase 1 (Ingestion + I/O contract). Pre-push hooks enabled, 32 unit + integration tests green, ruff check clean. Claimed Audio (Whisper-HIP) lane.
+
+

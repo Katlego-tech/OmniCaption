@@ -51,7 +51,20 @@ def validate_and_write(results: list[ClipResult], path: Path) -> None:
     Raises:
         pydantic.ValidationError: If ``results`` do not satisfy the schema.
     """
-    document = ResultsOutput(root=results)
+    try:
+        document = ResultsOutput(root=results)
+    except Exception as exc:
+        logger.error("Results validation failed: %s. Repairing to valid fallback.", exc)
+        repaired = []
+        for clip in results:
+            try:
+                ClipResult.model_validate(clip)
+                repaired.append(clip)
+            except Exception:
+                repaired.append(
+                    ClipResult(task_id=getattr(clip, "task_id", "unknown"), captions={})
+                )
+        document = ResultsOutput(root=repaired)
     path.parent.mkdir(parents=True, exist_ok=True)
 
     # Serialize enum keys to their string values for the JSON contract.

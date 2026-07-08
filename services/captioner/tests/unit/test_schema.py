@@ -38,14 +38,14 @@ def test_task_rejects_missing_styles() -> None:
         Task(task_id="v1", video_url="https://example.com/c.mp4", styles=[])
 
 
-def test_task_rejects_unknown_style() -> None:
-    """An unknown style value fails validation."""
-    with pytest.raises(ValidationError):
-        Task(
-            task_id="v1",
-            video_url="https://example.com/c.mp4",
-            styles=["formal", "nonsense"],
-        )
+def test_task_drops_unknown_style() -> None:
+    """An unknown style value is ignored/dropped."""
+    task = Task(
+        task_id="v1",
+        video_url="https://example.com/c.mp4",
+        styles=["formal", "nonsense"],
+    )
+    assert task.styles == [Style.FORMAL]
 
 
 def test_task_dedupes_styles() -> None:

@@ -144,3 +144,29 @@ def query_vram_gb() -> float | None:
     except (RuntimeError, AssertionError) as exc:
         logger.warning("VRAM query failed: %s", exc)
         return None
+
+
+def assert_amd(enforced: bool = False) -> None:
+    """Assert that an AMD device is active.
+
+    Fails loudly if enforced is True and no HIP-enabled device is visible.
+
+    Args:
+        enforced: If True, raise RuntimeError if AMD device is missing.
+    """
+    device = select_device()
+    logger.info("Active device: %s", device)
+
+    arch = detect_gfx_arch()
+    if arch:
+        logger.info("ROCm gfx arch detected: %s", arch)
+
+    vram = query_vram_gb()
+    if vram:
+        logger.info("ROCm HIP device total memory: %.2f GiB", vram)
+
+    if enforced and device != "cuda":
+        raise RuntimeError(
+            "AMD GPU / ROCm compute is enforced, but no active HIP/CUDA device is visible!"
+        )
+

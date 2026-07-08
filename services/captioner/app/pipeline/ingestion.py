@@ -12,6 +12,7 @@ from urllib.parse import urlparse
 
 import requests
 
+from app.core.errors import AudioExtractionError, IngestionError
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
@@ -53,12 +54,16 @@ def download_video(
     out_path = dest_dir / f"{task_id}_{_safe_stem(url, task_id)}{suffix}"
 
     logger.info("Downloading %s -> %s", url, out_path)
-    with requests.get(url, stream=True, timeout=timeout_s) as resp:
-        resp.raise_for_status()
-        with out_path.open("wb") as fh:
-            for chunk in resp.iter_content(chunk_size=_DOWNLOAD_CHUNK):
-                if chunk:
-                    fh.write(chunk)
+    try:
+        with requests.get(url, stream=True, timeout=timeout_s) as resp:
+            resp.raise_for_status()
+            with out_path.open("wb") as fh:
+                for chunk in resp.iter_content(chunk_size=_DOWNLOAD_CHUNK):
+                    if chunk:
+                        fh.write(chunk)
+    except requests.RequestException as exc:
+        logger.error("Download failed for URL %s: %s", url, exc)
+        raise IngestionError(f"Download failed: {exc}") from exc
 
     logger.info("Downloaded %.2f MiB", out_path.stat().st_size / (1024**2))
     return out_path
@@ -97,5 +102,12 @@ def extract_audio(video: Path, dest_dir: Path | None = None) -> Path:
         str(wav_path),
     ]
     logger.info("Extracting audio: %s", " ".join(cmd))
-    subprocess.run(cmd, check=True, capture_output=True, text=True)
+    try:
+        subprocess.run(cmd, check=True, capture_output=True, text=True)
+    except FileNotFoundError as exc:
+        logger.error("ffmpeg command not found on PATH: %s", exc)
+        raise AudioExtractionError("ffmpeg is not installed or not on PATH.") from exc
+    except subprocess.CalledProcessError as exc:
+        logger.error("ffmpeg failed with exit code %d: %s", exc.returncode, exc.stderr)
+        raise AudioExtractionError(f"ffmpeg failed: {exc.stderr.strip()}") from exc
     return wav_path

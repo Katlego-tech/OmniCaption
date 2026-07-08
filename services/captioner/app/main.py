@@ -13,7 +13,7 @@ import sys
 from app.core.config import Settings, get_settings
 from app.core.gpu import configure_rocm_env
 from app.core.logging import get_logger
-from app.core.schema import ClipResult, Task, TaskInput
+from app.core.schema import ClipResult, Task, load_tasks
 from app.pipeline.orchestrator import CaptionPipeline
 from app.pipeline.output import build_result, validate_and_write
 
@@ -34,8 +34,7 @@ def _load_tasks(cfg: Settings) -> list[Task]:
         logger.error("Tasks file not found: %s", path)
         return []
     try:
-        raw = path.read_text(encoding="utf-8")
-        return list(TaskInput.model_validate_json(raw))
+        return load_tasks(path)
     except Exception as exc:  # noqa: BLE001 - malformed input must not crash the run
         logger.exception("Failed to parse %s: %s", path, exc)
         return []
