@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  captioner:
+    name: captioner (lint + tests)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/captioner
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dev dependencies
+        # requirements-dev.txt installs the CPU-only test deps (models are mocked in unit tests),
+        # so CI does not need a GPU or the heavy ROCm wheels.
+        run: pip install -r requirements-dev.txt
+
+      - name: Ruff lint
+        run: ruff check .
+
+      - name: Ruff format check
+        run: ruff format --check .
+
+      - name: Pytest (unit + contract, models mocked)
+        run: python -m pytest -q

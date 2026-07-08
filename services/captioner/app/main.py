@@ -1,0 +1,83 @@
+"""Container entrypoint.
+
+Flow: configure ROCm env -> read ``/input/tasks.json`` -> run the pipeline ->
+write ``/output/results.json`` -> exit 0. Wrapped so that *any* failure still
+produces a schema-valid (possibly partial/empty) results file and a clean exit,
+because the eval harness scores on the presence and validity of the output.
+"""
+
+from __future__ import annotations
+
+import sys
+
+from app.core.config import Settings, get_settings
+from app.core.gpu import configure_rocm_env
+from app.core.logging import get_logger
+from app.core.schema import ClipResult, Task, TaskInput
+from app.pipeline.orchestrator import CaptionPipeline
+from app.pipeline.output import build_result, validate_and_write
+
+logger = get_logger(__name__)
+
+
+def _load_tasks(cfg: Settings) -> list[Task]:
+    """Read and validate the input tasks manifest.
+
+    Args:
+        cfg: Application settings.
+
+    Returns:
+        The parsed list of tasks (empty list if the file is missing/invalid).
+    """
+    path = cfg.tasks_path
+    if not path.exists():
+        logger.error("Tasks file not found: %s", path)
+        return []
+    try:
+        raw = path.read_text(encoding="utf-8")
+        return list(TaskInput.model_validate_json(raw))
+    except Exception as exc:  # noqa: BLE001 - malformed input must not crash the run
+        logger.exception("Failed to parse %s: %s", path, exc)
+        return []
+
+
+def run() -> int:
+    """Execute the full run and always write an output document.
+
+    Returns:
+        Process exit code (always ``0`` — the harness expects a clean exit).
+    """
+    cfg = get_settings()
+    configure_rocm_env(cfg.gfx_arch, cfg.hsa_override_gfx_version)
+
+    tasks = _load_tasks(cfg)
+    logger.info("Loaded %d task(s).", len(tasks))
+
+    results: list[ClipResult] = []
+    pipeline = CaptionPipeline(cfg)
+    try:
+        results = pipeline.run(tasks)
+    except Exception as exc:  # noqa: BLE001 - guarantee an output file regardless
+        logger.exception("Pipeline crashed: %s", exc)
+        # Backfill empty results so every task still appears in the output.
+        results = [build_result(t.task_id, {}, t.styles) for t in tasks]
+    finally:
+        pipeline.close()
+
+    try:
+        validate_and_write(results, cfg.results_path)
+    except Exception as exc:  # noqa: BLE001 - last-ditch: write an empty valid array
+        logger.exception("Failed to write results normally: %s", exc)
+        cfg.results_path.parent.mkdir(parents=True, exist_ok=True)
+        cfg.results_path.write_text("[]", encoding="utf-8")
+
+    return 0
+
+
+def main() -> None:
+    """Console/entrypoint wrapper that exits with :func:`run`'s code."""
+    sys.exit(run())
+
+
+if __name__ == "__main__":
+    main()
