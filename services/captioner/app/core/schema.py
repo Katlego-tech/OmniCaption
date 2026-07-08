@@ -22,12 +22,12 @@ Output (``/output/results.json``)::
 
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 
 from pydantic import BaseModel, Field, RootModel, field_validator
 
 
-class Style(str, Enum):
+class Style(StrEnum):
     """The four supported caption styles."""
 
     FORMAL = "formal"
