@@ -1,0 +1,115 @@
+"""Application settings via ``pydantic-settings``.
+
+All values are overridable through ``OMNICAPTION_*`` environment variables (see
+``.env.example``). Defaults target the hackathon eval harness, which mounts
+``/input`` and ``/output``.
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class Settings(BaseSettings):
+    """Runtime configuration for the captioning pipeline."""
+
+    model_config = SettingsConfigDict(
+        env_prefix="OMNICAPTION_",
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+    # --- I/O paths (mounted by the eval harness) ---
+    input_dir: Path = Field(
+        default=Path("/input"),
+        description="Directory containing tasks.json.",
+    )
+    output_dir: Path = Field(
+        default=Path("/output"),
+        description="Directory to write results.json.",
+    )
+    work_dir: Path = Field(
+        default=Path("/tmp/omnicaption"),
+        description="Scratch directory for downloaded videos and extracted audio.",
+    )
+
+    @property
+    def tasks_path(self) -> Path:
+        """Path to the input tasks manifest."""
+        return self.input_dir / "tasks.json"
+
+    @property
+    def results_path(self) -> Path:
+        """Path to the output results file."""
+        return self.output_dir / "results.json"
+
+    # --- Model identifiers ---
+    whisper_model_size: str = Field(
+        default="large-v3",
+        description="faster-whisper model size/name (e.g. tiny, base, large-v3).",
+    )
+    whisper_compute_type: str = Field(
+        default="float16",
+        description="CTranslate2 compute type (float16, int8_float16, int8).",
+    )
+    gemma_model_id: str = Field(
+        default="google/gemma-4-e4b-it",
+        description="HF Transformers repo id for the Gemma 4 E4B-it VLM.",
+    )
+
+    # --- Vision ---
+    keyframe_threshold: float = Field(
+        default=30.0,
+        description="Mean absolute pixel-variance threshold for scene-change detection.",
+    )
+    max_keyframes: int = Field(
+        default=8,
+        description="Cap on keyframes fed to the VLM (controls prompt size/latency).",
+    )
+
+    # --- Synthesis / generation ---
+    max_new_tokens: int = Field(
+        default=256,
+        description="Maximum tokens generated per caption.",
+    )
+    load_in_4bit: bool = Field(
+        default=True,
+        description="Load the Gemma VLM with 4-bit quantization (bitsandbytes).",
+    )
+    # Fusion weights for the hybrid audio/vision evidence blend used in prompting.
+    alpha: float = Field(default=0.6, description="Weight for transcript (audio) evidence.")
+    beta: float = Field(default=0.4, description="Weight for keyframe (vision) evidence.")
+
+    # --- GPU / ROCm ---
+    gfx_arch: str | None = Field(
+        default=None,
+        description="Override gfx arch (e.g. gfx942). Auto-detected when unset.",
+    )
+    hsa_override_gfx_version: str | None = Field(
+        default=None,
+        description="Value for HSA_OVERRIDE_GFX_VERSION (e.g. 11.0.0 for RDNA3).",
+    )
+
+    # --- Timeouts / latency guards (seconds) ---
+    download_timeout_s: float = Field(default=60.0, description="Per-video download timeout.")
+    per_request_budget_s: float = Field(
+        default=30.0,
+        description="Soft per-task latency budget; used to log/guard slow tasks.",
+    )
+    total_runtime_budget_s: float = Field(
+        default=600.0,
+        description="Hard total runtime budget for the whole run (10 min).",
+    )
+
+
+def get_settings() -> Settings:
+    """Construct a :class:`Settings` instance from the environment.
+
+    Returns:
+        A fully populated settings object.
+    """
+    return Settings()

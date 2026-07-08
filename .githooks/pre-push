@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+# OmniCaption pre-push gate.
+# Enable once per clone:  git config core.hooksPath .githooks
+#
+# Enforces two things:
+#   1. Branch-only workflow — direct pushes to `main` are rejected (open a PR).
+#   2. The test gate — the captioner unit suite must pass before code leaves your machine.
+#
+# Emergency bypass (use sparingly, and never to push a red main):  git push --no-verify
+
+set -u
+
+remote="$1"
+protected="refs/heads/main"
+
+# --- 1. Block direct pushes to main -----------------------------------------
+while read -r local_ref local_sha remote_ref remote_sha; do
+  if [ "$remote_ref" = "$protected" ]; then
+    echo "❌  Direct pushes to 'main' are not allowed."
+    echo "    Push a feature branch and open a PR:  git push origin feat/<lane>"
+    exit 1
+  fi
+done
+
+echo "🔎  Running the OmniCaption test gate before push..."
+
+fail=0
+root="$(git rev-parse --show-toplevel)"
+captioner="$root/services/captioner"
+
+# --- 2. Captioner Python tests ----------------------------------------------
+if [ -d "$captioner" ]; then
+  if python -c "import pytest" >/dev/null 2>&1; then
+    echo "→ pytest (services/captioner)"
+    ( cd "$captioner" && python -m pytest -q ) || fail=1
+  else
+    echo "⏭️  pytest not importable locally — skipping (CI still runs it)."
+  fi
+
+  if command -v ruff >/dev/null 2>&1; then
+    echo "→ ruff check (services/captioner)"
+    ( cd "$captioner" && ruff check . ) || fail=1
+  else
+    echo "⏭️  ruff not installed locally — skipping (CI still runs it)."
+  fi
+fi
+
+if [ "$fail" -ne 0 ]; then
+  echo "❌  Test gate failed. Fix it before pushing (or --no-verify only for a green branch)."
+  exit 1
+fi
+
+echo "✅  Test gate passed. Pushing to '$remote'."
+exit 0

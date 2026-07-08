@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/OmniCaption/**)",
+      "Bash(git fetch *)",
+      "Bash(git switch *)",
+      "Bash(git checkout *)",
+      "Bash(git status)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(gh pr *)",
+      "Bash(docker build *)",
+      "Bash(docker run *)",
+      "Bash(ruff check *)",
+      "Bash(ruff format *)",
+      "Bash(python -m pytest *)",
+      "Bash(pytest *)"
+    ]
+  }
+}

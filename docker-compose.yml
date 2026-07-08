@@ -1,0 +1,37 @@
+# Local development convenience — NOT the hackathon submission artifact.
+# The submission is the single `omnicaption` image run by the harness with /input and /output
+# mounts (see services/captioner/Dockerfile and docs/deployment.md).
+#
+# This compose file lets you run the captioner locally against sample tasks, and (stretch)
+# stand up the Track 3 vLLM-ROCm serving container for Video-Oracle.
+
+services:
+  captioner:
+    build: ./services/captioner
+    image: omnicaption:dev
+    container_name: omnicaption-captioner
+    # Mount sample input and a local output dir. Replace with real /input when testing the harness shape.
+    volumes:
+      - ./services/captioner/tests/fixtures:/input:ro
+      - ./out:/output
+    # GPU access on a ROCm host — uncomment on AMD hardware:
+    # devices:
+    #   - /dev/kfd
+    #   - /dev/dri
+    # group_add:
+    #   - video
+    # security_opt:
+    #   - seccomp:unconfined
+
+  # --- Track 3 (stretch): Gemma 4 31B served via vLLM-ROCm on MI300X ---------
+  # vllm:
+  #   image: vllm/vllm-openai-rocm:gemma4
+  #   container_name: omnicaption-vllm
+  #   command: >
+  #     vllm serve google/gemma-4-31B-it
+  #     --attention-backend TRITON_ATTN --kv-cache-dtype fp8 --max-model-len 32768
+  #   ports:
+  #     - "8000:8000"
+  #   devices:
+  #     - /dev/kfd
+  #     - /dev/dri

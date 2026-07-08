@@ -1,0 +1,29 @@
+[
+  {
+    "task_id": "v1",
+    "captions": {
+      "formal": "A technician assembles a mechanical component at a workbench, methodically fastening parts in sequence.",
+      "sarcastic": "Another human heroically tightens a screw, single-handedly justifying the heat death of the universe.",
+      "humorous_tech": "Watching this assembly is like debugging legacy code: everything's connected, nothing's documented, and one wrong move drops prod.",
+      "humorous_non_tech": "He's building it with the quiet confidence of a man who definitely did not read the instructions."
+    }
+  },
+  {
+    "task_id": "v2",
+    "captions": {
+      "formal": "A wide aerial shot pans across a coastal landscape as waves meet the shoreline under clear daylight.",
+      "sarcastic": "Ah yes, the ocean, still doing the exact same thing it has done for four billion years. Riveting stuff.",
+      "humorous_tech": "The tide comes in, the tide goes out: nature's original retry loop with no exponential backoff.",
+      "humorous_non_tech": "The beach: nature's way of charging you three hours of traffic for a bit of sand in your sandwich."
+    }
+  },
+  {
+    "task_id": "v3",
+    "captions": {
+      "formal": "Two individuals engage in conversation in an indoor setting, gesturing intermittently while seated.",
+      "sarcastic": "Two people talk. Groundbreaking cinema. Someone alert the awards committee immediately.",
+      "humorous_tech": "This conversation is a git merge conflict in real time: both parties committed to the same idea and neither will rebase.",
+      "humorous_non_tech": "Two friends catching up, each waiting politely for their turn to not listen to the other."
+    }
+  }
+]

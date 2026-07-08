@@ -1,0 +1,22 @@
+# Keep the build context (and image) lean — <10 GB target.
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.git/
+.gitignore
+.venv/
+venv/
+env/
+tests/
+*.md
+!README.md
+.env
+.env.example
+# Local scratch I/O mounts (provided by the harness at runtime).
+input/
+output/
+*.mp4
+*.wav
