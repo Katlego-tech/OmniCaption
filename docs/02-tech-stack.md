@@ -1,7 +1,7 @@
 # 02 — Tech Stack
 
-The stack is **locked**. Do not swap components without a team decision recorded in `STATUS.md` and a
-constitution amendment (see [07-ibm-bob-spec-kit](07-ibm-bob-spec-kit.md)).
+The stack is **locked**. Do not swap components without a team decision recorded in `STATUS.md` and an
+update to the non-negotiables in [PLAN.md](../PLAN.md) (see [07-planning-workflow](07-planning-workflow.md)).
 
 | Component | Choice | Why |
 | --- | --- | --- |

@@ -1,7 +1,10 @@
-# Tasks: OmniCaption Stylistic Video Captioning Agent
+# OmniCaption — Tasks
 
-**Feature branch:** `001-omnicaption-captioning`
-**Plan:** [plan.md](plan.md) · **Spec:** [spec.md](spec.md) · **Contracts:** [contracts/io-schemas.md](contracts/io-schemas.md), [contracts/pipeline-stages.md](contracts/pipeline-stages.md)
+**Plan:** [PLAN.md](PLAN.md) · **Spec:** [SPEC.md](SPEC.md) · **Contracts:** [docs/16-io-contract.md](docs/16-io-contract.md), [docs/17-pipeline-stages.md](docs/17-pipeline-stages.md)
+
+> One of the three shared-state files (with [AGENTS.md](AGENTS.md) and [STATUS.md](STATUS.md)).
+> **One writer per task** — claim it in STATUS.md before you start. The `services/captioner/`
+> skeleton already exists; most tasks are about filling in the `# TODO(hackathon)` stubs.
 
 ## Legend
 
@@ -21,16 +24,16 @@ Each user-story phase is ordered **Tests FIRST (must FAIL) → Implementation �
 
 ## Phase 1 — Setup
 
-- [ ] T001 [SET] Initialize `services/captioner/` package skeleton (`app/`, `tests/`, `__init__.py` files) per [plan.md](plan.md) structure.
+- [ ] T001 [SET] Initialize `services/captioner/` package skeleton (`app/`, `tests/`, `__init__.py` files) per [PLAN.md](PLAN.md) structure.
 - [ ] T002 [P] [SET] Add `pyproject.toml` with Ruff (line length 100) + pytest config (already scaffolded — verify markers `integration`, `contract`).
 - [ ] T003 [P] [SET] Pin runtime deps in `requirements.txt` and dev deps in `requirements-dev.txt` (pytest, ruff, jsonschema).
 - [ ] T004 [P] [SET] Author `Dockerfile` on a ROCm `linux/amd64` base; multi-stage to keep the image ≤10 GB; add `.dockerignore`.
-- [ ] T005 [SET] Add `app/config.py` `Settings` (pydantic-settings): input/output paths, scratch dir, model ids, keyframe cap, seeds, budgets, enforce-AMD flag.
-- [ ] T006 [P] [SET] Add JSON Schema files for input & output under `tests/fixtures/schemas/` mirroring [contracts/io-schemas.md](contracts/io-schemas.md).
+- [ ] T005 [SET] Add `app/core/config.py` `Settings` (pydantic-settings): input/output paths, scratch dir, model ids, keyframe cap, seeds, budgets, enforce-AMD flag.
+- [ ] T006 [P] [SET] Add JSON Schema files for input & output under `tests/fixtures/schemas/` mirroring [docs/16-io-contract.md](docs/16-io-contract.md).
 - [ ] T007 [P] [SET] Add `tests/fixtures/tasks.sample.json` (v1/v2/v3 baseline tasks) for quickstart + tests.
 - [ ] T008 [P] [SET] Add `.githooks/pre-push` (Ruff + fast test suite) and document `git config core.hooksPath .githooks`.
 - [ ] T009 [SET] Add CI workflow: lint + unit/contract/integration on CPU; GPU-gated lane for latency + AMD-compute checks.
-- [ ] T010 [SET] Seed `STATUS.md` and `AGENTS.md` coordination files (constitution VI) and link this tasks file.
+- [ ] T010 [SET] Seed `STATUS.md` and `AGENTS.md` coordination files (shared-state protocol) and link this tasks file.
 
 **Checkpoint:** repo builds a skeleton image, lint + empty test run pass, schemas and sample input in place.
 
@@ -38,18 +41,18 @@ Each user-story phase is ordered **Tests FIRST (must FAIL) → Implementation �
 
 ## Phase 2 — Foundational (blocking; no user story is complete without these)
 
-- [ ] T011 [FND] Implement `app/core/device.py`: detect AMD/ROCm device (torch HIP), log active device, `assert_amd()` that fails loudly in enforced mode.
+- [ ] T011 [FND] Implement `app/core/gpu.py`: detect AMD/ROCm device (torch HIP), log active device, `assert_amd()` that fails loudly in enforced mode.
 - [ ] T012 [P] [FND] Verify/extend `app/core/logging.py` single-line greppable stdout format (exists) and add a run-id prefix.
 - [ ] T013 [P] [FND] Implement `app/core/timing.py`: per-stage timer context manager writing into `CaptionState.timings`; budget-assertion helpers.
 - [ ] T014 [P] [FND] Implement `app/core/errors.py`: typed pipeline errors + `fallback_caption(evidence)` deterministic helper.
-- [ ] T015 [FND] Implement `app/pipeline/state.py` `CaptionState` dataclass exactly as in [plan.md](plan.md).
-- [ ] T016 [FND] Implement `app/models/task.py` pydantic models: `Task`, `StyleCaption`, `ClipResult`, `ResultsOutput` per [data-model.md](data-model.md).
-- [ ] T017 [P] [FND] Implement `app/models/transcript.py`: `Word`, `Segment`, `Transcript` with validation rules.
-- [ ] T018 [P] [FND] Implement `app/models/keyframe.py`: `Keyframe` (timestamp, image ref, aligned segment idx).
-- [ ] T019 [FND] Implement `app/io/tasks_loader.py`: parse + validate `/input/tasks.json`, skip unknown styles, fail fast on malformed top-level.
-- [ ] T020 [FND] Implement `app/io/results_writer.py`: schema-validate then atomically write `/output/results.json`; repair-to-valid on validation failure.
-- [ ] T021 [P] [FND] Implement `app/io/downloader.py`: fetch `video_url` to scratch with timeout + structured error on failure.
-- [ ] T022 [FND] Implement `app/ffmpeg.py`: subprocess wrapper extracting mono 16 kHz WAV; raise typed error on non-zero ffmpeg exit.
+- [ ] T015 [FND] Implement `app/pipeline/orchestrator.py` `CaptionState` dataclass exactly as in [PLAN.md](PLAN.md).
+- [ ] T016 [FND] Implement `app/core/schema.py` pydantic models: `Task`, `StyleCaption`, `ClipResult`, `ResultsOutput` per [docs/15-data-model.md](docs/15-data-model.md).
+- [ ] T017 [P] [FND] Implement `app/pipeline/audio.py`: `Word`, `Segment`, `Transcript` with validation rules.
+- [ ] T018 [P] [FND] Implement `app/pipeline/vision.py`: `Keyframe` (timestamp, image ref, aligned segment idx).
+- [ ] T019 [FND] Implement `app/core/schema.py`: parse + validate `/input/tasks.json`, skip unknown styles, fail fast on malformed top-level.
+- [ ] T020 [FND] Implement `app/pipeline/output.py`: schema-validate then atomically write `/output/results.json`; repair-to-valid on validation failure.
+- [ ] T021 [P] [FND] Implement `app/pipeline/ingestion.py`: fetch `video_url` to scratch with timeout + structured error on failure.
+- [ ] T022 [FND] Implement `app/pipeline/ingestion.py`: subprocess wrapper extracting mono 16 kHz WAV; raise typed error on non-zero ffmpeg exit.
 - [ ] T023 [FND] Implement `app/pipeline/orchestrator.py` skeleton: iterate tasks, thread `CaptionState` through stage hooks, own fallbacks + exit-0 guarantee.
 - [ ] T024 [FND] Implement `app/main.py` entrypoint: load config, assert device, load tasks, run orchestrator, write results, `sys.exit(0)`.
 - [ ] T025 [P] [FND] Add `tests/conftest.py` fixtures: mocked STT/VLM, sample `CaptionState`, temp scratch dir.
@@ -69,7 +72,7 @@ Each user-story phase is ordered **Tests FIRST (must FAIL) → Implementation �
 
 ### Implementation
 
-- [ ] T030 [US1] Implement `app/pipeline/s1_ingestion.py`: download video (T021) + extract WAV (T022); populate `video_path`, `wav_path`.
+- [ ] T030 [US1] Implement `app/pipeline/ingestion.py`: download video (T021) + extract WAV (T022); populate `video_path`, `wav_path`.
 - [ ] T031 [US1] Wire S1 into orchestrator; per-task error isolation (continue on single-task failure).
 - [ ] T032 [P] [US1] Handle unknown/duplicate styles at ingestion; normalize requested styles list on `Task`.
 - [ ] T033 [US1] Make ingestion deterministic (stable scratch paths keyed by `task_id`) for reproducibility (CC5).
@@ -89,10 +92,10 @@ Each user-story phase is ordered **Tests FIRST (must FAIL) → Implementation �
 
 ### Implementation
 
-- [ ] T038 [US2] Implement faster-whisper loader in `app/pipeline/s2_audio.py` using CTranslate2-HIP backend; device from `core/device.py`.
+- [ ] T038 [US2] Implement faster-whisper loader in `app/pipeline/audio.py` using CTranslate2-HIP backend; device from `core/device.py`.
 - [ ] T039 [US2] Transcribe WAV → `Transcript` with segment + word timestamps; capture transcript to CPU memory.
 - [ ] T040 [US2] Handle no-speech clips: return empty `Transcript` (empty segments) without error.
-- [ ] T041 [US2] Implement `app/pipeline/s3_reclaim.py`: `del model`, `gc.collect()`, `torch.cuda.empty_cache()`; log freed VRAM.
+- [ ] T041 [US2] Implement `app/pipeline/memory.py`: `del model`, `gc.collect()`, `torch.cuda.empty_cache()`; log freed VRAM.
 - [ ] T042 [US2] Wire S2 → S3 in orchestrator so VRAM is reclaimed before any VLM stage loads.
 
 **Checkpoint:** real clip yields a word-level transcript on AMD compute; empty-audio clip handled; STT VRAM demonstrably released before vision/synthesis.
@@ -109,7 +112,7 @@ Each user-story phase is ordered **Tests FIRST (must FAIL) → Implementation �
 
 ### Implementation
 
-- [ ] T046 [US3] Implement pixel-variance scene-change detection in `app/pipeline/s4_vision.py` (OpenCV, CPU-side).
+- [ ] T046 [US3] Implement pixel-variance scene-change detection in `app/pipeline/vision.py` (OpenCV, CPU-side).
 - [ ] T047 [US3] Enforce configurable `max_keyframes` cap (token-budget guardrail) with even-coverage selection when over cap.
 - [ ] T048 [US3] Implement static-clip fallback sampling (first/mid/last) guaranteeing ≥1 keyframe.
 - [ ] T049 [US3] Align keyframes to transcript timeline; store aligned segment index on `Keyframe`.
@@ -131,7 +134,7 @@ Each user-story phase is ordered **Tests FIRST (must FAIL) → Implementation �
 
 ### Implementation
 
-- [ ] T056 [US4] Implement Gemma 4 E4B-it 4-bit loader in `app/pipeline/s5_synthesis.py` (HF Transformers, PyTorch ROCm); graceful degrade to bf16 if quant backend absent.
+- [ ] T056 [US4] Implement Gemma 4 E4B-it 4-bit loader in `app/pipeline/synthesis.py` (HF Transformers, PyTorch ROCm); graceful degrade to bf16 if quant backend absent.
 - [ ] T057 [US4] Implement `app/prompts/templates.py`: assemble prompt in locked modality order (images → transcript → style prompt).
 - [ ] T058 [P] [US4] Add `formal` system prompt in `app/prompts/styles.py` (neutral, objective, grounded).
 - [ ] T059 [US4] Generate `formal` `StyleCaption`; pin low/zero temperature + fixed seed for reproducibility (CC5).
@@ -170,14 +173,14 @@ Each user-story phase is ordered **Tests FIRST (must FAIL) → Implementation �
 ### Tests FIRST (ensure they FAIL)
 
 - [ ] T073 [P] [US6] `tests/contract/test_output_schema.py`: `results.json` validates against output schema; every requested style present (AC6.1, AC6.2).
-- [ ] T074 [P] [US6] `tests/contract/test_input_schema.py`: input loader accepts valid, rejects invalid per [contracts/io-schemas.md](contracts/io-schemas.md).
+- [ ] T074 [P] [US6] `tests/contract/test_input_schema.py`: input loader accepts valid, rejects invalid per [docs/16-io-contract.md](docs/16-io-contract.md).
 - [ ] T075 [P] [US6] `tests/unit/test_exit_code.py`: pipeline exits 0 even when some tasks failed (AC6.3).
 - [ ] T076 [US6] `tests/integration/test_latency.py` (GPU-gated): per-request <30 s and batch ≤10 min budgets asserted (AC6.4).
 - [ ] T077 [P] [US6] `tests/integration/test_missing_style_scores_zero.py`: a dropped style is absent → documented 0-score behavior verified.
 
 ### Implementation
 
-- [ ] T078 [US6] Implement `app/pipeline/s6_output.py`: assemble `ClipResult`/`ResultsOutput`, schema-validate, hand to `results_writer`.
+- [ ] T078 [US6] Implement `app/pipeline/output.py`: assemble `ClipResult`/`ResultsOutput`, schema-validate, hand to `results_writer`.
 - [ ] T079 [US6] Enforce per-request timeout in orchestrator that trips the fallback path (keeps <30 s).
 - [ ] T080 [US6] Add batch-level budget guard + timing summary log (≤10 min); log per-stage timings.
 - [ ] T081 [US6] Verify `main.py` always `sys.exit(0)` after writing results (even on captured errors).
@@ -215,11 +218,11 @@ Each user-story phase is ordered **Tests FIRST (must FAIL) → Implementation �
 
 - [ ] T095 [P] [POL] Produce AMD-compute proof artifact (device logs + `rocm-smi` capture) for judging.
 - [ ] T096 [P] [POL] Golden-clip regression tests on v1/v2/v3 to catch tone/fidelity drift.
-- [ ] T097 [P] [POL] Fill `docs/06-judging-criteria` submission checklist; cross-check against [checklists/requirements.md](checklists/requirements.md).
+- [ ] T097 [P] [POL] Fill `docs/06-judging-criteria` submission checklist; cross-check against [docs/06-judging-criteria.md](docs/06-judging-criteria.md).
 - [ ] T098 [P] [POL] Ruff clean pass (100 col) + type/docstring sweep across `app/`.
 - [ ] T099 [POL] Build, tag, and push the `linux/amd64` image; verify pulled image runs the sample batch.
-- [ ] T100 [POL] Local smoke test from a clean checkout following [quickstart.md](quickstart.md); fix any drift.
-- [ ] T101 [P] [POL] Update `STATUS.md`/`AGENTS.md`, tag a release, and record a constitution version bump if any principle interpretation changed.
+- [ ] T100 [POL] Local smoke test from a clean checkout following [services/captioner/README.md](services/captioner/README.md); fix any drift.
+- [ ] T101 [P] [POL] Update `STATUS.md`/`AGENTS.md`, tag a release, and note any change to the project non-negotiables in [PLAN.md](PLAN.md).
 - [ ] T102 [POL] Final always-green `main` verification: CI green, image-size + latency + AMD-compute gates pass.
 
 ---
@@ -247,12 +250,12 @@ Each user-story phase is ordered **Tests FIRST (must FAIL) → Implementation �
 - US5 style prompts T067/T068/T069 are `[P]` (separate prompt definitions).
 - Polish T095–T098 and T101 are `[P]`.
 - Model stages themselves are **not** parallel at runtime — STT and VLM are strictly sequential
-  (constitution II / VRAM budget).
+  (non-negotiable II / VRAM budget).
 
 ## MVP-first strategy
 
 Ship **US1–US6** first — that is a complete, scorable Track 2 submission. Cut order under time
-pressure (from [docs/00-project-plan](../../docs/00-project-plan.md)): drop US7 entirely first, then
+pressure (from [docs/00-project-plan](docs/00-project-plan.md)): drop US7 entirely first, then
 demo UI, then adaptive keyframe budgeting/self-critique, then humor-style polish, then PMP
 sophistication (fall back to single-shot sarcasm). **Never cut:** schema-valid `results.json`, exit 0,
 demonstrable AMD compute, and the `formal` style. Always emit a fallback for every requested style —

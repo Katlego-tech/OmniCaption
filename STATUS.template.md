@@ -1,6 +1,6 @@
 # OmniCaption — STATUS
 
-_Last updated: YYYY-MM-DD — by <name> (via Bob|Claude|Gemini)_
+_Last updated: YYYY-MM-DD — by <name> (via Claude|Gemini)_
 
 > Read this first, then [AGENTS.md](AGENTS.md). Update this file after **every** step.
 

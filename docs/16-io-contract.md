@@ -1,7 +1,6 @@
 # Contract: Input & Output JSON Schemas
 
-**Feature branch:** `001-omnicaption-captioning`
-**Related:** [../spec.md](../spec.md) · [../data-model.md](../data-model.md) · [pipeline-stages.md](pipeline-stages.md)
+**Related:** [../SPEC.md](../SPEC.md) · [15-data-model.md](15-data-model.md) · [17-pipeline-stages.md](17-pipeline-stages.md)
 
 This is the **authoritative** JSON contract between the evaluation harness and OmniCaption. The
 harness mounts `/input/tasks.json` and reads `/output/results.json`. Both are validated in

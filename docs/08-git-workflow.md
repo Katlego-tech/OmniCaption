@@ -42,7 +42,7 @@ feat(audio): T012 faster-whisper HIP transcription
 
 - `<type>` — `feat`, `fix`, `docs`, etc.
 - `<scope>` — the pipeline lane (`audio`, `vision`, `synthesis`, `output`, ...).
-- `<TASK-ID>` — the id from `specs/tasks.md` (e.g. `T012`), tying the commit to the task list.
+- `<TASK-ID>` — the id from [TASKS.md](../TASKS.md) (e.g. `T012`), tying the commit to the task list.
 
 ## PR flow
 

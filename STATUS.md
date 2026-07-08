@@ -4,13 +4,15 @@ _Last updated: 2026-07-08 — by Tumo (via Claude)_
 
 > Read this first, then [AGENTS.md](AGENTS.md). Update this file after **every** step.
 > Shared state lives in three files only: AGENTS.md (rules), this board, and
-> [specs/tasks.md](specs/tasks.md) (the task list). If it isn't here, it didn't happen.
+> [TASKS.md](TASKS.md) (the task list). If it isn't here, it didn't happen.
 
 ## 🎯 Current focus (claim your lane here)
 
-Project just bootstrapped. The full scaffold is in place — shared-state protocol, Spec-Kit
-seeds + generated feature artifacts, numbered docs, and the `services/captioner/` Python skeleton.
-**Nothing is implemented yet**; the next move is Phase 0 setup and claiming the first lanes.
+Project bootstrapped and simplified. The scaffold is in place — shared-state protocol, the
+SPEC/PLAN/TASKS planning documents, numbered docs, and the `services/captioner/` Python skeleton.
+**IBM Bob and GitHub Spec-Kit have been removed**; planning is now self-driven through
+[SPEC.md](SPEC.md) / [PLAN.md](PLAN.md) / [TASKS.md](TASKS.md). **Nothing is implemented yet**; the
+next move is Phase 0 setup and claiming the first lanes.
 
 | Lane | Owner | AI | Status |
 |------|-------|----|--------|
@@ -25,11 +27,9 @@ seeds + generated feature artifacts, numbered docs, and the `services/captioner/
 ## ⏭️ Next action
 
 1. **Confirm the hackathon deadline** and fill the timeline dates (currently TBD). — _open decision_
-2. Run [Bob's Spec-Kit lifecycle](docs/07-ibm-bob-spec-kit.md) to formalize the seeds into the
-   generated feature (`.bob/` + `.specify/scripts` are created by `specify init` / Bob — not hand-committed).
-3. Work [docs/11-phase0-runbook.md](docs/11-phase0-runbook.md): get AMD Developer Cloud / local ROCm
+2. Work [docs/11-phase0-runbook.md](docs/11-phase0-runbook.md): get AMD Developer Cloud / local ROCm
    access, enable hooks (`git config core.hooksPath .githooks`), build the container skeleton.
-4. Claim the **Ingestion + I/O contract** lane and start T-tasks in Phase 1.
+3. Claim the **Ingestion + I/O contract** lane and start T-tasks in Phase 1 of [TASKS.md](TASKS.md).
 
 ## 🗓️ Timeline (to <hackathon deadline — TBD>)
 
@@ -46,12 +46,11 @@ seeds + generated feature artifacts, numbered docs, and the `services/captioner/
 ## 🧱 What's built so far
 
 - ✅ Shared-state protocol: [README](README.md), [AGENTS](AGENTS.md), [CLAUDE](CLAUDE.md), [GEMINI](GEMINI.md), this board + [template](STATUS.template.md).
-- ✅ Governance: [constitution](.specify/memory/constitution.md) (7 principles) + Spec-Kit [templates](.specify/templates/).
-- ✅ Planning seeds: [specs/constitution.md](specs/constitution.md), [specs/spec.md](specs/spec.md), [specs/plan.md](specs/plan.md), [specs/tasks.md](specs/tasks.md).
-- ✅ Generated feature artifacts: [specs/001-omnicaption-captioning/](specs/001-omnicaption-captioning/) (spec, plan, tasks, research, data-model, contracts, checklists).
-- ✅ Numbered planning docs: [docs/](docs/) 00–14 + deployment.
-- ✅ Python pipeline skeleton: [services/captioner/](services/captioner/) (6-stage pipeline, config, schema, tests, Dockerfile).
+- ✅ Planning documents: [SPEC.md](SPEC.md), [PLAN.md](PLAN.md) (incl. the 7 non-negotiables), [TASKS.md](TASKS.md) (102 tasks).
+- ✅ Reference docs: [docs/](docs/) 00–17 + deployment (data model, I/O contract, pipeline stages).
+- ✅ Python pipeline skeleton: [services/captioner/](services/captioner/) (6-stage pipeline, config, schema, tests, Dockerfile) — 17 tests passing, ruff clean.
 - ✅ Always-green-main gate: [pre-push hook](.githooks/pre-push) + [CI](.github/workflows/ci.yml).
+- ✅ IBM Bob + GitHub Spec-Kit removed; planning flattened to SPEC/PLAN/TASKS/STATUS.
 - ⬜ No models wired, no real inference, no container build validated yet.
 
 ## 🛠️ Environment & access
@@ -67,13 +66,17 @@ seeds + generated feature artifacts, numbered docs, and the `services/captioner/
 - 🔀 **Gemma 4 E4B vs 26B/31B** — E4B (4-bit) fits the container/VRAM budget; larger models only
   viable on MI300X for Track 3 serving. Decision: E4B for Track 2, revisit for Track 3.
 - 🧠 **VRAM ceiling** — loading Whisper + VLM together OOMs on 8–16 GB cards. Mitigation: strict
-  sequential loading + memory reclamation between stages (Principle II).
+  sequential loading + memory reclamation between stages (Non-negotiable II).
 - ⏱️ **Latency** — 4 styles × VLM generation must stay <30 s/request. Mitigation: batch the 4 styles
   in one VLM call, keyframe budgeting. (See [docs/14-optimization-suggestions.md](docs/14-optimization-suggestions.md).)
 - 🔒 **AMD-compute proof** — absence = disqualification. Must log/verify ROCm device usage at runtime.
 
 ## 🗒️ Log
 
-- 2026-07-08 — Tumo (via Claude) — Bootstrapped the full repo scaffold from the FrameFlow structure:
-  shared-state protocol, Spec-Kit seeds + generated feature, docs 00–14, and the captioner pipeline
-  skeleton. Nothing implemented yet; ready for Phase 0.
+- 2026-07-08 — Tumo (via Claude) — Removed IBM Bob + GitHub Spec-Kit entirely. Deleted `.specify/`
+  and the two-layer `specs/` tree; promoted the plan/spec/tasks to root `PLAN.md`/`SPEC.md`/`TASKS.md`
+  (reconciled to the real code layout), moved data-model + I/O contract + pipeline-stages into
+  `docs/15–17`, and folded the constitution's substance into PLAN.md as **Non-negotiables**. Tests
+  still green.
+- 2026-07-08 — Tumo (via Claude) — Bootstrapped the full repo scaffold: shared-state protocol, docs,
+  and the captioner pipeline skeleton (17 tests passing).

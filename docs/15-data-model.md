@@ -1,11 +1,10 @@
 # Data Model: OmniCaption
 
-**Feature branch:** `001-omnicaption-captioning`
-**Plan:** [plan.md](plan.md) · **Contracts:** [contracts/io-schemas.md](contracts/io-schemas.md), [contracts/pipeline-stages.md](contracts/pipeline-stages.md)
+**Plan:** [../PLAN.md](../PLAN.md) · **Contracts:** [16-io-contract.md](16-io-contract.md), [17-pipeline-stages.md](17-pipeline-stages.md)
 
 This document defines every data entity in OmniCaption — its fields, types, and validation rules —
 plus the exact input and output JSON shapes. Entities are implemented as pydantic models
-(`app/models/`) except `CaptionState`, which is a runtime dataclass (`app/pipeline/state.py`). The
+(`app/core/schema.py`) except `CaptionState`, which is a runtime dataclass (`app/pipeline/orchestrator.py`). The
 four known style keys are the closed set `{formal, sarcastic, humorous_tech, humorous_non_tech}`.
 
 ---
@@ -14,15 +13,15 @@ four known style keys are the closed set `{formal, sarcastic, humorous_tech, hum
 
 | Entity | Kind | Module | Role |
 | --- | --- | --- | --- |
-| `Task` | input | `app/models/task.py` | One clip + its requested styles (from `/input`). |
-| `StyleCaption` | output leaf | `app/models/task.py` | One caption for one style. |
-| `ClipResult` | output | `app/models/task.py` | All styled captions for one task. |
-| `ResultsOutput` | output root | `app/models/task.py` | The whole `/output/results.json` document. |
-| `Word` | evidence | `app/models/transcript.py` | One transcribed word + timing. |
-| `Segment` | evidence | `app/models/transcript.py` | A contiguous run of words. |
-| `Transcript` | evidence | `app/models/transcript.py` | The full transcript for a clip. |
-| `Keyframe` | evidence | `app/models/keyframe.py` | One sampled frame + timing/alignment. |
-| `CaptionState` | runtime | `app/pipeline/state.py` | Mutable per-task state threaded through stages. |
+| `Task` | input | `app/core/schema.py` | One clip + its requested styles (from `/input`). |
+| `StyleCaption` | output leaf | `app/core/schema.py` | One caption for one style. |
+| `ClipResult` | output | `app/core/schema.py` | All styled captions for one task. |
+| `ResultsOutput` | output root | `app/core/schema.py` | The whole `/output/results.json` document. |
+| `Word` | evidence | `app/pipeline/audio.py` | One transcribed word + timing. |
+| `Segment` | evidence | `app/pipeline/audio.py` | A contiguous run of words. |
+| `Transcript` | evidence | `app/pipeline/audio.py` | The full transcript for a clip. |
+| `Keyframe` | evidence | `app/pipeline/vision.py` | One sampled frame + timing/alignment. |
+| `CaptionState` | runtime | `app/pipeline/orchestrator.py` | Mutable per-task state threaded through stages. |
 
 ---
 
@@ -56,7 +55,7 @@ One caption for one style — the scored leaf.
 
 Rules:
 - A `StyleCaption` **must exist for every requested + known style** by output time; the fallback path
-  guarantees this. A missing style is scored **0** by the harness (see [contracts/io-schemas.md](contracts/io-schemas.md)).
+  guarantees this. A missing style is scored **0** by the harness (see [16-io-contract.md](16-io-contract.md)).
 - `caption` must be grounded — constraint enforced upstream in synthesis, not by the schema.
 
 ---
@@ -152,7 +151,7 @@ Rules:
 ## CaptionState
 
 Runtime dataclass threaded through the six stages (not serialized to output). Defined in full in
-[plan.md](plan.md#pipeline-state-object).
+[../PLAN.md](../PLAN.md#pipeline-state-object).
 
 | Field | Type | Written by | Notes |
 | --- | --- | --- | --- |
@@ -221,4 +220,4 @@ Runtime dataclass threaded through the six stages (not serialized to output). De
 ```
 
 The authoritative JSON Schemas and the missing-style-scores-0 rule live in
-[contracts/io-schemas.md](contracts/io-schemas.md).
+[16-io-contract.md](16-io-contract.md).

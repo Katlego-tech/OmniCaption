@@ -16,12 +16,12 @@ visuals, and writes four stylistic captions per clip — **formal**, **sarcastic
 
 | Person | Role | AI copilots | Entry point |
 |--------|------|-------------|-------------|
-| **Katlego** | Team leader, repo owner | IBM Bob + Gemini | [GEMINI.md](GEMINI.md) |
-| **Tumo** | Co-builder | IBM Bob + Claude | [CLAUDE.md](CLAUDE.md) |
+| **Katlego** | Team leader, repo owner | Gemini | [GEMINI.md](GEMINI.md) |
+| **Tumo** | Co-builder | Claude | [CLAUDE.md](CLAUDE.md) |
 
-**IBM Bob** is the system of record and drives the [Spec-Kit](docs/07-ibm-bob-spec-kit.md) lifecycle.
-Claude and Gemini work in parallel as assistants. All three coordinate only through the three
-shared-state files below.
+Claude and Gemini work in parallel as assistants. Both coordinate only through the three shared-state
+files below, and planning is driven directly by the team — see
+[docs/07-planning-workflow.md](docs/07-planning-workflow.md).
 
 ## Read these first, in order
 
@@ -64,9 +64,8 @@ inside an 8–16 GB VRAM budget. See [docs/03-captioning-pipeline.md](docs/03-ca
 OmniCaption/
 ├── README.md · AGENTS.md · CLAUDE.md · GEMINI.md   shared-state entry points
 ├── STATUS.md · STATUS.template.md                  the live board
-├── docs/                     00–14 numbered planning docs + deployment
-├── specs/                    Spec-Kit: human seeds + generated feature artifacts
-├── .specify/                 Spec-Kit engine (constitution + templates)
+├── SPEC.md · PLAN.md · TASKS.md                    the planning documents
+├── docs/                     00–17 numbered planning docs + deployment
 ├── services/captioner/       the Python captioning pipeline + Dockerfile
 └── apps/web/  (stretch)      Track 3 Video-Oracle demo
 ```
