@@ -19,7 +19,7 @@ def settings_with_key() -> Settings:
     return Settings(
         fireworks_api_key="fake_key",
         fireworks_api_url="https://api.fireworks.ai/inference/v1",
-        fireworks_vlm_model="qwen2-vl-72b-instruct",
+        fireworks_vlm_model="accounts/fireworks/models/kimi-k2p6",
     )
 
 

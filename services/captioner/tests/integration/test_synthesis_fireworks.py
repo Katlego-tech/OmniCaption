@@ -18,7 +18,7 @@ def test_synthesis_fireworks_integration(monkeypatch: pytest.MonkeyPatch) -> Non
     settings = Settings(
         fireworks_api_key="integration_test_key",
         fireworks_api_url="https://api.fireworks.ai/inference/v1",
-        fireworks_vlm_model="qwen2-vl-72b-instruct",
+        fireworks_vlm_model="accounts/fireworks/models/kimi-k2p6",
     )
 
     class MockResponse:
@@ -34,7 +34,7 @@ def test_synthesis_fireworks_integration(monkeypatch: pytest.MonkeyPatch) -> Non
         calls += 1
         assert url == f"{settings.fireworks_api_url}/chat/completions"
         assert headers["Authorization"] == "Bearer integration_test_key"
-        assert json["model"] == "qwen2-vl-72b-instruct"
+        assert json["model"] == "accounts/fireworks/models/kimi-k2p6"
         assert json["temperature"] == 0.0
         return MockResponse()
 
