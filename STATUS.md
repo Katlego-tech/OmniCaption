@@ -1,6 +1,6 @@
 # OmniCaption — STATUS
 
-_Last updated: 2026-07-09 — by Katlego (via Gemini)_
+_Last updated: 2026-07-09 — by Tumo (via Claude)_
 
 > Read this first, then [AGENTS.md](AGENTS.md). Update this file after **every** step.
 > Shared state lives in three files only: AGENTS.md (rules), this board, and
@@ -21,10 +21,17 @@ Planning is now self-driven through [SPEC.md](SPEC.md) / [PLAN.md](PLAN.md) / [T
 | Vision (keyframes) | Katlego | Gemini | ✅ completed |
 | Synthesis (Gemma 4 VLM) + styles | Katlego | Gemini | ✅ completed |
 | Container + budgets | Katlego | Gemini | ✅ completed |
+| Polish: submission checklist + smoke/doc drift (T097, T100) | Tumo | Claude | 🔄 PR open |
+| Polish: AMD proof + image push (T095, T099) | Katlego | Gemini | ⬜ open |
 
 ## ⏭️ Next action
 
-1. Claim and implement Phase 6 (Polish & submission) to build and release the container for submission.
+1. **Katlego:** T099 — build/tag/push the `linux/amd64` image. ⚠️ Before building: bake Whisper
+   weights into the image (the Dockerfile sets `HF_HUB_OFFLINE=1` but the model-cache layer is
+   still a TODO — startup would fail or blow the 60 s budget) and pass `FIREWORKS_API_KEY` at run.
+2. **Katlego:** T095 — AMD-compute proof: ROCm/HIP device logs (local Whisper) + Fireworks
+   request evidence (MI300X backend).
+3. T096 golden-clip regression, then T101/T102 final sweep.
 
 ## 🗓️ Timeline (to Saturday July 11 — 6PM)
 
@@ -49,6 +56,12 @@ Planning is now self-driven through [SPEC.md](SPEC.md) / [PLAN.md](PLAN.md) / [T
 - ✅ Removed PMP for Kimi K2.6 reasoning VLM to prevent token truncation.
 - ✅ Set default OMNICAPTION_MAX_NEW_TOKENS to 4096 and increased requests timeout to 60.0s to accommodate reasoning VLM latency and transient load.
 - ✅ All 44 tests pass green, ruff check clean.
+- ✅ Clean-environment smoke test (T100): fresh venv → install → ruff → pytest, 44/44 green on
+  CPU/Windows following the captioner README verbatim.
+- ✅ Captioner README rewritten to match the shipped hybrid stack (local Whisper STT + remote
+  Fireworks VLM, XML-tag output, PMP retired from the runtime path).
+- ✅ Submission checklist in [docs/06-judging-criteria.md](docs/06-judging-criteria.md) filled with
+  per-item status + evidence (T097).
 
 ## 🛠️ Environment & access
 
@@ -84,6 +97,16 @@ Planning is now self-driven through [SPEC.md](SPEC.md) / [PLAN.md](PLAN.md) / [T
 - 2026-07-09 — Katlego (via Gemini) — Completed Phase 4 (Synthesis / Gemma 4 VLM + styles) implementing remote Qwen2.5-VL captioning via Fireworks AI VLM API with PMP support. All 46 tests passing, ruff clean. Claimed Container + budgets lane.
 - 2026-07-09 — Katlego (via Gemini) — Completed Phase 5 (Container + budgets) enforcing per-request timeouts (15.0s) and batch-level guards. All tests passing green. Claimed Polish & submission lane.
 - 2026-07-09 — Katlego (via Gemini) — Simplified style prompts and removed PMP to avoid token truncation on reasoning VLMs. Increased VLM token limit to 4096 and request timeout to 60.0s to handle reasoning latency. Verified 100% clean end-to-end run producing all four styles correctly.
+- 2026-07-09 — Tumo (via Claude) — Claimed T097 + T100 (polish). Clean-venv smoke test green
+  (44/44, ruff clean). Fixed doc drift: rewrote the captioner README for the hybrid
+  Whisper-local/Fireworks-VLM stack; fixed `max_new_tokens` default (was still 1024 in
+  `config.py` while `.env.example` said 4096 — the container would have truncated reasoning
+  output); updated the stale synthesis docstring. Filled the docs/06 submission checklist.
+  **Flags for Katlego:** (1) Dockerfile sets `HF_HUB_OFFLINE=1` but Whisper weights are not
+  baked — container startup will fail/blow 60 s until the model-cache layer is done (T099);
+  (2) PLAN.md still says STT is remote Fireworks Whisper, but the code runs local
+  faster-whisper — please confirm intent and reconcile; (3) synthesis HTTP timeout is 60 s,
+  which can breach the <30 s per-request budget on slow styles — needs a measured run (T102).
 
 
 
