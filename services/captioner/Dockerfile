@@ -9,7 +9,8 @@ FROM --platform=linux/amd64 rocm/pytorch:latest
 # ffmpeg is required by the ingestion stage for audio extraction.
 # git, cmake, and build-essential are required to build CTranslate2 with HIP support.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ffmpeg git build-essential cmake \
+    && apt-get install -y --no-install-recommends ffmpeg git build-essential cmake libomp-dev \
+    && ln -sf $(find /usr/lib -name "libomp.so" | head -n 1) /usr/local/lib/libomp.so \
     && rm -rf /var/lib/apt/lists/*
 
 # ---- Compile CTranslate2-HIP from source ---------------------------------------
@@ -20,7 +21,10 @@ ENV LD_LIBRARY_PATH="/usr/local/lib:${LD_LIBRARY_PATH}"
 RUN git clone --recursive --branch v4.8.0 https://github.com/OpenNMT/CTranslate2.git \
     && cd CTranslate2 \
     && mkdir build && cd build \
-    && cmake -DWITH_HIP=ON -DWITH_MKL=OFF -DOPENMP_RUNTIME=COMP -DCMAKE_BUILD_TYPE=Release .. \
+    && CC=/opt/rocm/lib/llvm/bin/clang CXX=/opt/rocm/lib/llvm/bin/clang++ cmake \
+       -DCMAKE_CXX_COMPILER=/opt/rocm/lib/llvm/bin/clang++ \
+       -DCMAKE_C_COMPILER=/opt/rocm/lib/llvm/bin/clang \
+       -DWITH_HIP=ON -DWITH_MKL=OFF -DOPENMP_RUNTIME=COMP -DCMAKE_BUILD_TYPE=Release .. \
     && make -j$(nproc) install \
     && cd ../python \
     && pip install --no-cache-dir -r install_requirements.txt \
@@ -47,8 +51,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # <60 s constraint, and the harness runs offline). Uncomment and pin real ids.
 #
 # Bake Whisper large-v3 weights into the image so container startup does no network I/O
-RUN python -c "from faster_whisper import WhisperModel; \
-               WhisperModel('large-v3', download_root='/opt/hf-cache')"
+RUN HF_HUB_OFFLINE=0 python -c "import huggingface_hub; \
+               huggingface_hub.snapshot_download('Systran/faster-whisper-large-v3', cache_dir='/opt/hf-cache')"
 # These layers are cached independently of the app source so code edits do not
 # invalidate the (large, slow) weight download.
 
