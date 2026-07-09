@@ -123,6 +123,9 @@ Planning is now self-driven through [SPEC.md](SPEC.md) / [PLAN.md](PLAN.md) / [T
   AC5.1 updated to single-shot sarcasm (PMP retired — the documented cut-order fallback);
   CLAUDE.md/GEMINI.md "locked stack" + stage list updated with a pointer to this plan change.
   Release tagging (T101 part 2) waits for T095/T099/T102.
+- 2026-07-09 — Tumo (via Claude) — CI: removed the `branches: [main]` filter on `pull_request`
+  so stacked PRs (feature → feature) run the gate before merge. Verified locally that the full
+  CI recipe passes on the stack, including `ruff format --check` (46 files clean).
 
 
 

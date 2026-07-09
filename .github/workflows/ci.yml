@@ -3,8 +3,9 @@ name: CI
 on:
   push:
     branches: [main]
+  # No base-branch filter: stacked PRs (feature -> feature) must run the gate
+  # before merge too, not only after they retarget to main.
   pull_request:
-    branches: [main]
 
 jobs:
   captioner:
