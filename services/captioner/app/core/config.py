@@ -76,7 +76,7 @@ class Settings(BaseSettings):
         description="Fireworks AI Whisper model identifier.",
     )
     fireworks_vlm_model: str = Field(
-        default="accounts/fireworks/models/qwen2-vl-72b-instruct",
+        default="accounts/fireworks/models/kimi-k2p5",
         description="Fireworks AI Vision-Language Model identifier.",
     )
 

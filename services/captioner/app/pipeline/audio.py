@@ -12,11 +12,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-import requests
-
 from app.core.config import Settings
-from app.core.errors import TranscriptionError
 from app.core.logging import get_logger
+from app.models.loader import load_whisper
 
 logger = get_logger(__name__)
 
@@ -60,10 +58,10 @@ class Transcript:
 
 
 class WhisperTranscriber:
-    """Lifecycle wrapper around the Fireworks Whisper API."""
+    """Lifecycle wrapper around a faster-whisper model."""
 
     def __init__(self, cfg: Settings) -> None:
-        """Store config; defer initialization to :meth:`load`.
+        """Store config; defer heavy model loading to :meth:`load`.
 
         Args:
             cfg: Application settings.
@@ -72,12 +70,12 @@ class WhisperTranscriber:
         self.model: Any | None = None
 
     def load(self) -> None:
-        """Initialize the transcriber (idempotent)."""
+        """Load the underlying Whisper model (idempotent)."""
         if self.model is None:
-            self.model = True
+            self.model = load_whisper(self._cfg)
 
     def transcribe(self, wav: Path) -> Transcript:
-        """Transcribe a WAV file into a :class:`Transcript` using Fireworks Whisper API.
+        """Transcribe a WAV file into a :class:`Transcript`.
 
         Args:
             wav: Path to a mono 16 kHz WAV file.
@@ -87,96 +85,41 @@ class WhisperTranscriber:
 
         Raises:
             RuntimeError: If called before :meth:`load`.
-            TranscriptionError: If the API call fails.
         """
         if self.model is None:
             raise RuntimeError("WhisperTranscriber.transcribe() called before load().")
 
-        logger.info("Transcribing %s via Fireworks AI API", wav)
+        logger.info("Transcribing %s", wav)
+        # faster-whisper returns a generator of segments plus an info object.
+        raw_segments, info = self.model.transcribe(
+            str(wav),
+            word_timestamps=True,
+            vad_filter=True,
+        )
 
-        if not self._cfg.fireworks_api_key:
-            raise TranscriptionError("Fireworks API key is not configured. Cannot transcribe.")
-
-        url = f"{self._cfg.fireworks_api_url}/audio/transcriptions"
-        headers = {
-            "Authorization": f"Bearer {self._cfg.fireworks_api_key}",
-        }
-
-        try:
-            with open(wav, "rb") as f:
-                files = {"file": (wav.name, f, "audio/wav")}
-                data_list = [
-                    ("model", self._cfg.fireworks_whisper_model),
-                    ("response_format", "verbose_json"),
-                    ("timestamp_granularities[]", "word"),
-                    ("timestamp_granularities[]", "segment"),
-                ]
-                response = requests.post(
-                    url, headers=headers, files=files, data=data_list, timeout=15.0
-                )
-        except Exception as exc:
-            raise TranscriptionError(
-                f"HTTP request to Fireworks Whisper API failed: {exc}"
-            ) from exc
-
-        if response.status_code != 200:
-            raise TranscriptionError(
-                f"Fireworks Whisper API failed with status {response.status_code}: {response.text}"
-            )
-
-        try:
-            res_json = response.json()
-        except Exception as exc:
-            raise TranscriptionError(
-                f"Failed to parse Fireworks Whisper API response JSON: {exc}"
-            ) from exc
-
-        raw_segments = res_json.get("segments", [])
         segments: list[Segment] = []
         for seg in raw_segments:
-            words_list = seg.get("words", [])
-            words = []
-            if words_list:
-                for w in words_list:
-                    words.append(
-                        Word(
-                            start=float(w.get("start", 0.0)),
-                            end=float(w.get("end", 0.0)),
-                            text=str(w.get("word", "")),
-                            probability=float(w.get("probability", 1.0)),
-                        )
-                    )
-            else:
-                # Interpolation fallback: split segment text and distribute duration
-                seg_text = seg.get("text", "").strip()
-                seg_words = seg_text.split()
-                if seg_words:
-                    start_val = float(seg.get("start", 0.0))
-                    end_val = float(seg.get("end", 0.0))
-                    duration = end_val - start_val
-                    word_dur = duration / len(seg_words)
-                    for i, w_text in enumerate(seg_words):
-                        words.append(
-                            Word(
-                                start=start_val + i * word_dur,
-                                end=start_val + (i + 1) * word_dur,
-                                text=w_text,
-                                probability=1.0,
-                            )
-                        )
-
+            words = [
+                Word(
+                    start=float(w.start),
+                    end=float(w.end),
+                    text=w.word,
+                    probability=float(getattr(w, "probability", 1.0)),
+                )
+                for w in (seg.words or [])
+            ]
             segments.append(
                 Segment(
-                    start=float(seg.get("start", 0.0)),
-                    end=float(seg.get("end", 0.0)),
-                    text=seg.get("text", ""),
+                    start=float(seg.start),
+                    end=float(seg.end),
+                    text=seg.text,
                     words=words,
                 )
             )
 
         transcript = Transcript(
-            language=res_json.get("language", "en"),
-            duration=float(res_json.get("duration", 0.0)),
+            language=getattr(info, "language", "en"),
+            duration=float(getattr(info, "duration", 0.0)),
             segments=segments,
         )
         logger.info(
@@ -188,5 +131,9 @@ class WhisperTranscriber:
         return transcript
 
     def unload(self) -> None:
-        """Drop the transcriber reference."""
+        """Drop the model reference so its VRAM can be reclaimed.
+
+        The caller is responsible for invoking
+        :func:`app.pipeline.memory.reclaim_vram` afterwards.
+        """
         self.model = None
