@@ -92,8 +92,9 @@ class Settings(BaseSettings):
 
     # --- Synthesis / generation ---
     max_new_tokens: int = Field(
-        default=1024,
-        description="Maximum tokens generated per caption.",
+        default=4096,
+        description="Maximum tokens generated per caption (reasoning VLMs spend "
+        "tokens on thinking before the tagged caption).",
     )
     load_in_4bit: bool = Field(
         default=True,
