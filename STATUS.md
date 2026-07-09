@@ -22,6 +22,7 @@ Planning is now self-driven through [SPEC.md](SPEC.md) / [PLAN.md](PLAN.md) / [T
 | Synthesis (Gemma 4 VLM) + styles | Katlego | Gemini | ✅ completed |
 | Container + budgets | Katlego | Gemini | ✅ completed |
 | Polish: submission checklist + smoke/doc drift (T097, T100) | Tumo | Claude | 🔄 PR open |
+| Polish: golden-clip regression tests (T096) | Tumo | Claude | 🔄 PR open |
 | Polish: AMD proof + image push (T095, T099) | Katlego | Gemini | ⬜ open |
 
 ## ⏭️ Next action
@@ -107,6 +108,13 @@ Planning is now self-driven through [SPEC.md](SPEC.md) / [PLAN.md](PLAN.md) / [T
   (2) PLAN.md still says STT is remote Fireworks Whisper, but the code runs local
   faster-whisper — please confirm intent and reconcile; (3) synthesis HTTP timeout is 60 s,
   which can breach the <30 s per-request budget on slow styles — needs a measured run (T102).
+- 2026-07-09 — Tumo (via Claude) — T096 golden-clip regression tests (tests-first: failed, then
+  green). Pins the tone-bearing surfaces byte-for-byte against golden fixtures over frozen
+  v1/v2/v3 evidence: the four style system prompts + tag rules, prompt-assembly shape
+  (images → transcript), and the deterministic fallback text. Deliberate tone changes must
+  regenerate goldens via `tests/regression/regen_goldens.py` in the same PR. Added an opt-in
+  live Fireworks structural test (gated on `FIREWORKS_API_KEY` + `OMNICAPTION_LIVE_TESTS=1`,
+  never runs in CI). Suite now 49 green + 1 gated skip, ruff clean.
 
 
 
