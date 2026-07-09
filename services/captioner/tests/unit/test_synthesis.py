@@ -24,35 +24,44 @@ def settings_with_key() -> Settings:
 
 
 def test_modality_order_and_pmp(settings_with_key: Settings) -> None:
-    """_build_messages puts images first, then transcript, then optional PMP, then style."""
+    """_build_messages puts instructions in system and user message split."""
     synth = CaptionSynthesizer(settings_with_key)
     dummy_img = np.zeros((10, 10, 3), dtype=np.uint8)
     keyframes = [Keyframe(index=0, timestamp=0.0, image=dummy_img)]
 
-    # Test formal style (no PMP)
+    # Test formal style (no PMP in system message)
     messages = synth._build_messages(keyframes, "Test transcript", Style.FORMAL)
-    content = messages[0]["content"]
+    assert len(messages) == 2
+    assert messages[0]["role"] == "system"
+    assert messages[1]["role"] == "user"
 
-    assert len(content) == 3
-    assert content[0]["type"] == "image_url"
-    assert "data:image/jpeg;base64" in content[0]["image_url"]["url"]
-    assert content[1]["type"] == "text"
-    assert "Transcript:\nTest transcript" in content[1]["text"]
-    assert content[2]["type"] == "text"
-    assert len(content[2]["text"]) > 10
+    system_content = messages[0]["content"]
+    assert "expert, objective video archivist" in system_content
+    assert "<captionStyle>" in system_content
 
-    # Test sarcastic style (includes PMP)
+    user_content = messages[1]["content"]
+    assert len(user_content) == 2
+    assert user_content[0]["type"] == "image_url"
+    assert "data:image/jpeg;base64" in user_content[0]["image_url"]["url"]
+    assert user_content[1]["type"] == "text"
+    assert "Transcript:\nTest transcript" in user_content[1]["text"]
+
+    # Test sarcastic style (includes PMP in system message)
     messages_sarcastic = synth._build_messages(
         keyframes, "Test transcript", Style.SARCASTIC
     )
-    content_sarc = messages_sarcastic[0]["content"]
+    assert len(messages_sarcastic) == 2
+    assert messages_sarcastic[0]["role"] == "system"
+    assert messages_sarcastic[1]["role"] == "user"
 
-    assert len(content_sarc) == 4
-    assert content_sarc[0]["type"] == "image_url"
-    assert content_sarc[1]["type"] == "text"
-    assert content_sarc[2]["type"] == "text"
-    assert content_sarc[2]["text"] == PMP_INSTRUCTION
-    assert content_sarc[3]["type"] == "text"
+    system_content_sarc = messages_sarcastic[0]["content"]
+    assert PMP_INSTRUCTION in system_content_sarc
+    assert "highly cynical, grumpy critic" in system_content_sarc
+
+    user_content_sarc = messages_sarcastic[1]["content"]
+    assert len(user_content_sarc) == 2
+    assert user_content_sarc[0]["type"] == "image_url"
+    assert user_content_sarc[1]["type"] == "text"
 
 
 def test_synthesis_success(monkeypatch: pytest.MonkeyPatch, settings_with_key: Settings) -> None:

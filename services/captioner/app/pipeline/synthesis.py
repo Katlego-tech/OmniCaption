@@ -52,7 +52,7 @@ class CaptionSynthesizer:
         transcript_text: str,
         style: Style,
     ) -> list[dict[str, Any]]:
-        """Assemble chat messages in order: images -> transcript -> style prompt.
+        """Assemble messages: system prompt (persona + rules) and user prompt (images + transcript).
 
         Args:
             keyframes: Aligned keyframes.
@@ -64,13 +64,13 @@ class CaptionSynthesizer:
         """
         from app.pipeline.vision import encode_image_to_base64
 
-        content: list[dict[str, Any]] = []
+        user_content: list[dict[str, Any]] = []
 
         # 1. Images first
         for kf in keyframes:
             try:
                 b64 = encode_image_to_base64(kf.image)
-                content.append(
+                user_content.append(
                     {
                         "type": "image_url",
                         "image_url": {"url": f"data:image/jpeg;base64,{b64}"},
@@ -81,15 +81,30 @@ class CaptionSynthesizer:
 
         # 2. Transcript text
         transcript_block = transcript_text.strip() or "(no speech detected)"
-        content.append({"type": "text", "text": f"Transcript:\n{transcript_block}"})
+        user_content.append({"type": "text", "text": f"Transcript:\n{transcript_block}"})
 
-        # 3. Style prompt (preceded by PMP instruction for sarcasm)
+        # 3. System prompt with formatting instructions
+        system_instructions: list[str] = []
         if style is Style.SARCASTIC:
-            content.append({"type": "text", "text": PMP_INSTRUCTION})
+            system_instructions.append(PMP_INSTRUCTION)
 
-        content.append({"type": "text", "text": get_style_prompt(style)})
+        system_instructions.append(get_style_prompt(style))
 
-        return [{"role": "user", "content": content}]
+        # Append XML tag requirement to enforce reasoning/content separation on reasoning VLMs
+        tag_instruction = (
+            " IMPORTANT: Absolutely do not output the caption directly. You must format "
+            "your final caption inside <captionStyle>...</captionStyle> tags. Put all your "
+            "thinking process and notes outside these tags, and put ONLY the final caption "
+            "inside the tags."
+        )
+        system_instructions.append(tag_instruction)
+
+        system_prompt = "\n".join(system_instructions)
+
+        return [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_content},
+        ]
 
     def generate_caption(
         self,
@@ -144,6 +159,13 @@ class CaptionSynthesizer:
         try:
             res_json = response.json()
             caption = res_json["choices"][0]["message"]["content"]
+
+            # Extract content from <captionStyle>...</captionStyle> tags
+            import re
+            match = re.search(r"<captionStyle>(.*?)</captionStyle>", caption, re.DOTALL)
+            if match:
+                return match.group(1).strip()
+            # Fallback if tags not found (e.g. if model outputted directly)
             return caption.strip()
         except Exception as exc:
             raise SynthesisError(
