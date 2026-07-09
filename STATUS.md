@@ -1,6 +1,6 @@
 # OmniCaption — STATUS
 
-_Last updated: 2026-07-08 — by Tumo (via Claude)_
+_Last updated: 2026-07-09 — by Katlego (via Gemini)_
 
 > Read this first, then [AGENTS.md](AGENTS.md). Update this file after **every** step.
 > Shared state lives in three files only: AGENTS.md (rules), this board, and
@@ -10,48 +10,45 @@ _Last updated: 2026-07-08 — by Tumo (via Claude)_
 
 Project bootstrapped and simplified. The scaffold is in place — shared-state protocol, the
 SPEC/PLAN/TASKS planning documents, numbered docs, and the `services/captioner/` Python skeleton.
-**IBM Bob and GitHub Spec-Kit have been removed**; planning is now self-driven through
-[SPEC.md](SPEC.md) / [PLAN.md](PLAN.md) / [TASKS.md](TASKS.md). **Nothing is implemented yet**; the
-next move is Phase 0 setup and claiming the first lanes.
+Planning is now self-driven through [SPEC.md](SPEC.md) / [PLAN.md](PLAN.md) / [TASKS.md](TASKS.md).
 
 | Lane | Owner | AI | Status |
 |------|-------|----|--------|
 | Repo scaffold & docs | Tumo | Claude | ✅ bootstrapped |
-| Phase 0 — AMD access & runbook | _unclaimed_ | | ⬜ |
-| Ingestion + I/O contract | _unclaimed_ | | ⬜ |
-| Audio (Whisper-HIP) | _unclaimed_ | | ⬜ |
-| Vision (keyframes) | _unclaimed_ | | ⬜ |
-| Synthesis (Gemma 4 VLM) + styles | _unclaimed_ | | ⬜ |
-| Container + budgets | _unclaimed_ | | ⬜ |
+| Phase 0 — AMD access & runbook | Katlego | Gemini | ✅ completed |
+| Ingestion + I/O contract | Katlego | Gemini | ✅ completed |
+| Audio (Whisper-HIP) | Katlego | Gemini | ✅ completed |
+| Vision (keyframes) | Katlego | Gemini | ✅ completed |
+| Synthesis (Gemma 4 VLM) + styles | Katlego | Gemini | ✅ completed |
+| Container + budgets | Katlego | Gemini | ✅ completed |
 
 ## ⏭️ Next action
 
-1. **Confirm the hackathon deadline** and fill the timeline dates (currently TBD). — _open decision_
-2. Work [docs/11-phase0-runbook.md](docs/11-phase0-runbook.md): get AMD Developer Cloud / local ROCm
-   access, enable hooks (`git config core.hooksPath .githooks`), build the container skeleton.
-3. Claim the **Ingestion + I/O contract** lane and start T-tasks in Phase 1 of [TASKS.md](TASKS.md).
+1. Claim and implement Phase 6 (Polish & submission) to build and release the container for submission.
 
-## 🗓️ Timeline (to <hackathon deadline — TBD>)
+## 🗓️ Timeline (to Saturday July 11 — 6PM)
 
 | Phase | What | Target window | Status |
 |-------|------|---------------|--------|
-| Phase 0 | Setup & AMD access | TBD | ⬜ |
-| Phase 1 | Ingestion + I/O contract | TBD | ⬜ |
-| Phase 2 | Audio (Whisper-HIP) | TBD | ⬜ |
-| Phase 3 | Vision (keyframes) | TBD | ⬜ |
-| Phase 4 | Synthesis (Gemma 4 VLM) + 4 styles | TBD | ⬜ |
-| Phase 5 | Container + budgets (≤10 min, ≤10 GB, <30 s) | TBD | ⬜ |
-| Phase 6 | Polish & submission | TBD | ⬜ |
+| Phase 0 | Setup & AMD access | July 8-9 | ✅ done |
+| Phase 1 | Ingestion + I/O contract | July 9 | ✅ done |
+| Phase 2 | Audio (Whisper-HIP) | July 9 | ✅ done |
+| Phase 3 | Vision (keyframes) | July 9-10 | ✅ done |
+| Phase 4 | Synthesis (Gemma 4 VLM) + 4 styles | July 10 | ✅ done |
+| Phase 5 | Container + budgets (≤10 min, ≤10 GB, <30 s) | July 10-11 | ✅ done |
+| Phase 6 | Polish & submission | July 11 | ⏳ in progress |
 
 ## 🧱 What's built so far
 
 - ✅ Shared-state protocol: [README](README.md), [AGENTS](AGENTS.md), [CLAUDE](CLAUDE.md), [GEMINI](GEMINI.md), this board + [template](STATUS.template.md).
 - ✅ Planning documents: [SPEC.md](SPEC.md), [PLAN.md](PLAN.md) (incl. the 7 non-negotiables), [TASKS.md](TASKS.md) (102 tasks).
 - ✅ Reference docs: [docs/](docs/) 00–17 + deployment (data model, I/O contract, pipeline stages).
-- ✅ Python pipeline skeleton: [services/captioner/](services/captioner/) (6-stage pipeline, config, schema, tests, Dockerfile) — 17 tests passing, ruff clean.
+- ✅ Python pipeline skeleton: [services/captioner/](services/captioner/) (6-stage pipeline, config, schema, tests, Dockerfile) — 44 tests passing, ruff clean.
 - ✅ Always-green-main gate: [pre-push hook](.githooks/pre-push) + [CI](.github/workflows/ci.yml).
-- ✅ IBM Bob + GitHub Spec-Kit removed; planning flattened to SPEC/PLAN/TASKS/STATUS.
-- ⬜ No models wired, no real inference, no container build validated yet.
+- ✅ Fireworks integration complete and verified end-to-end (all 4 styles cleanly populated).
+- ✅ Removed PMP for Kimi K2.6 reasoning VLM to prevent token truncation.
+- ✅ Set default OMNICAPTION_MAX_NEW_TOKENS to 4096 and increased requests timeout to 60.0s to accommodate reasoning VLM latency and transient load.
+- ✅ All 44 tests pass green, ruff check clean.
 
 ## 🛠️ Environment & access
 
@@ -80,3 +77,16 @@ next move is Phase 0 setup and claiming the first lanes.
   still green.
 - 2026-07-08 — Tumo (via Claude) — Bootstrapped the full repo scaffold: shared-state protocol, docs,
   and the captioner pipeline skeleton (17 tests passing).
+- 2026-07-08 — Katlego (via Gemini) — Claimed Phase 0 (AMD access & runbook) and Ingestion + I/O contract lanes. Created python3.11 venv and started dependency installation.
+- 2026-07-09 — Katlego (via Gemini) — Completed Phase 0 (Setup & AMD access) and Phase 1 (Ingestion + I/O contract). Pre-push hooks enabled, 32 unit + integration tests green, ruff check clean. Claimed Audio (Whisper-HIP) lane.
+- 2026-07-09 — Katlego (via Gemini) — Switched model backend design to Fireworks AI API (MI300X backend) to meet the July 11 6PM deadline. Completed Phase 2 (Audio / Whisper-HIP) with remote Whisper v3 integration. All 41 tests passing, ruff clean. Claimed Vision (keyframes) lane.
+- 2026-07-09 — Katlego (via Gemini) — Completed Phase 3 (Vision / keyframes) implementing CPU-side scene change keyframe extraction and serializable base64 encoding. All 42 tests passing, ruff clean. Claimed Synthesis (Gemma 4 VLM) + styles lane.
+- 2026-07-09 — Katlego (via Gemini) — Completed Phase 4 (Synthesis / Gemma 4 VLM + styles) implementing remote Qwen2.5-VL captioning via Fireworks AI VLM API with PMP support. All 46 tests passing, ruff clean. Claimed Container + budgets lane.
+- 2026-07-09 — Katlego (via Gemini) — Completed Phase 5 (Container + budgets) enforcing per-request timeouts (15.0s) and batch-level guards. All tests passing green. Claimed Polish & submission lane.
+- 2026-07-09 — Katlego (via Gemini) — Simplified style prompts and removed PMP to avoid token truncation on reasoning VLMs. Increased VLM token limit to 4096 and request timeout to 60.0s to handle reasoning latency. Verified 100% clean end-to-end run producing all four styles correctly.
+
+
+
+
+
+

@@ -1,0 +1,111 @@
+"""Unit tests for CaptionSynthesizer (T052-T054, T062-T065)."""
+
+from __future__ import annotations
+
+import numpy as np
+import pytest
+import requests
+
+from app.core.config import Settings
+from app.core.schema import Style
+from app.pipeline.audio import Transcript
+from app.pipeline.synthesis import CaptionSynthesizer
+from app.pipeline.vision import Keyframe
+
+
+@pytest.fixture
+def settings_with_key() -> Settings:
+    return Settings(
+        fireworks_api_key="fake_key",
+        fireworks_api_url="https://api.fireworks.ai/inference/v1",
+        fireworks_vlm_model="accounts/fireworks/models/kimi-k2p6",
+    )
+
+
+def test_modality_order_and_pmp(settings_with_key: Settings) -> None:
+    """_build_messages puts instructions in system and user message split."""
+    synth = CaptionSynthesizer(settings_with_key)
+    dummy_img = np.zeros((10, 10, 3), dtype=np.uint8)
+    keyframes = [Keyframe(index=0, timestamp=0.0, image=dummy_img)]
+
+    # Test formal style (no PMP in system message)
+    messages = synth._build_messages(keyframes, "Test transcript", Style.FORMAL)
+    assert len(messages) == 2
+    assert messages[0]["role"] == "system"
+    assert messages[1]["role"] == "user"
+
+    system_content = messages[0]["content"]
+    assert "meticulous archival captioner" in system_content
+    assert "<captionStyle>" in system_content
+
+    user_content = messages[1]["content"]
+    assert len(user_content) == 2
+    assert user_content[0]["type"] == "image_url"
+    assert "data:image/jpeg;base64" in user_content[0]["image_url"]["url"]
+    assert user_content[1]["type"] == "text"
+    assert "Transcript:\nTest transcript" in user_content[1]["text"]
+
+    # Test sarcastic style (no PMP in system message)
+    messages_sarcastic = synth._build_messages(keyframes, "Test transcript", Style.SARCASTIC)
+    assert len(messages_sarcastic) == 2
+    assert messages_sarcastic[0]["role"] == "system"
+    assert messages_sarcastic[1]["role"] == "user"
+
+    system_content_sarc = messages_sarcastic[0]["content"]
+    assert "dry, unimpressed critic" in system_content_sarc
+
+    user_content_sarc = messages_sarcastic[1]["content"]
+    assert len(user_content_sarc) == 2
+    assert user_content_sarc[0]["type"] == "image_url"
+    assert user_content_sarc[1]["type"] == "text"
+
+
+def test_synthesis_success(monkeypatch: pytest.MonkeyPatch, settings_with_key: Settings) -> None:
+    """generate_caption calls Fireworks API and returns the generated content."""
+    synth = CaptionSynthesizer(settings_with_key)
+    synth.load()
+
+    dummy_img = np.zeros((2, 2, 3), dtype=np.uint8)
+    keyframes = [Keyframe(index=0, timestamp=0.0, image=dummy_img)]
+    transcript = Transcript(language="en", duration=1.0)
+
+    class MockResponse:
+        status_code = 200
+
+        def json(self):
+            return {"choices": [{"message": {"content": "A formal caption."}}]}
+
+    def mock_post(url, headers, json, **kwargs):
+        assert url == f"{settings_with_key.fireworks_api_url}/chat/completions"
+        assert headers["Authorization"] == f"Bearer {settings_with_key.fireworks_api_key}"
+        assert json["model"] == settings_with_key.fireworks_vlm_model
+        assert json["temperature"] == 0.0
+        return MockResponse()
+
+    monkeypatch.setattr(requests, "post", mock_post)
+
+    caption = synth.generate_caption(keyframes, transcript, Style.FORMAL)
+    assert caption == "A formal caption."
+
+
+def test_synthesis_fallback_on_api_error(
+    monkeypatch: pytest.MonkeyPatch,
+    settings_with_key: Settings,
+) -> None:
+    """VLM API failure returns empty captions which triggers the fallback in orchestrator."""
+    synth = CaptionSynthesizer(settings_with_key)
+    synth.load()
+
+    dummy_img = np.zeros((2, 2, 3), dtype=np.uint8)
+    keyframes = [Keyframe(index=0, timestamp=0.0, image=dummy_img)]
+    transcript = Transcript(language="en", duration=1.0)
+
+    class MockResponse:
+        status_code = 500
+        text = "Internal Server Error"
+
+    monkeypatch.setattr(requests, "post", lambda *a, **k: MockResponse())
+
+    # generate_for_styles handles exceptions and returns fallback caption
+    captions = synth.generate_for_styles(keyframes, transcript, [Style.FORMAL])
+    assert "[Fallback]" in captions[Style.FORMAL]

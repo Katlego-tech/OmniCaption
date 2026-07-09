@@ -54,12 +54,19 @@ def reclaim_vram() -> None:
         return
 
     try:
+        before = torch.cuda.memory_allocated()
         torch.cuda.empty_cache()
         torch.cuda.synchronize()
         # ipc_collect is CUDA-specific and may be absent/no-op under ROCm.
         collect = getattr(torch.cuda, "ipc_collect", None)
         if callable(collect):
             collect()
-        logger.info("Reclaimed VRAM (gc + empty_cache).")
+        after = torch.cuda.memory_allocated()
+        freed = before - after
+        logger.info(
+            "Reclaimed VRAM (gc + empty_cache). Current allocated: %.2f MB (freed: %.2f MB).",
+            after / (1024 * 1024),
+            freed / (1024 * 1024),
+        )
     except (RuntimeError, AssertionError) as exc:
         logger.warning("VRAM reclamation partial failure: %s", exc)

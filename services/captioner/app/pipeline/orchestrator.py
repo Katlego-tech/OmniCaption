@@ -15,10 +15,14 @@ large models never co-reside in VRAM.
 from __future__ import annotations
 
 import time
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import TYPE_CHECKING
 
 from app.core.config import Settings
 from app.core.logging import get_logger
-from app.core.schema import ClipResult, Task
+from app.core.schema import ClipResult, Style, Task
+from app.core.timing import stage_timer
 from app.pipeline import ingestion
 from app.pipeline.audio import Transcript, WhisperTranscriber
 from app.pipeline.memory import free_model, reclaim_vram
@@ -26,7 +30,25 @@ from app.pipeline.output import build_result
 from app.pipeline.synthesis import CaptionSynthesizer
 from app.pipeline.vision import align_to_transcript, extract_keyframes
 
+if TYPE_CHECKING:
+    from app.pipeline.vision import Keyframe
+
 logger = get_logger(__name__)
+
+
+@dataclass
+class CaptionState:
+    """Mutable state threaded through the 6 pipeline stages for a single task."""
+
+    task_id: str
+    styles: list[Style]
+    video_path: Path | None = None
+    wav_path: Path | None = None
+    transcript: Transcript | None = None
+    keyframes: list[Keyframe] = field(default_factory=list)
+    captions: dict[Style, str] = field(default_factory=dict)
+    timings: dict[str, float] = field(default_factory=dict)
+    errors: list[str] = field(default_factory=list)
 
 
 class CaptionPipeline:
@@ -42,6 +64,7 @@ class CaptionPipeline:
         # Synthesizer persists across tasks (loaded once, reused).
         self._synth = CaptionSynthesizer(cfg)
         self._run_started: float = 0.0
+        self.current_state: CaptionState | None = None
 
     def run(self, tasks: list[Task]) -> list[ClipResult]:
         """Run the pipeline over all tasks.
@@ -82,37 +105,49 @@ class CaptionPipeline:
         started = time.monotonic()
         logger.info("=== Task %s: %s ===", task.task_id, task.video_url)
 
+        # Create the state object and make it inspectable
+        state = CaptionState(task_id=task.task_id, styles=task.styles)
+        self.current_state = state
+
         try:
             # Stage 1: ingestion.
-            video = ingestion.download_video(
-                task.video_url,
-                self._cfg.work_dir,
-                timeout_s=self._cfg.download_timeout_s,
-                task_id=task.task_id,
-            )
-            wav = ingestion.extract_audio(video, self._cfg.work_dir)
+            with stage_timer("ingestion", state.timings):
+                state.video_path = ingestion.download_video(
+                    task.video_url,
+                    self._cfg.work_dir,
+                    timeout_s=self._cfg.download_timeout_s,
+                    task_id=task.task_id,
+                )
+                state.wav_path = ingestion.extract_audio(state.video_path, self._cfg.work_dir)
 
             # Stages 2 + 3: transcription then VRAM reclamation.
-            transcript = self._transcribe(wav)
+            with stage_timer("audio", state.timings):
+                state.transcript = self._transcribe(state.wav_path)
 
             # Stage 4: vision.
-            keyframes = extract_keyframes(
-                video,
-                threshold=self._cfg.keyframe_threshold,
-                max_keyframes=self._cfg.max_keyframes,
-            )
-            align_to_transcript(keyframes, transcript)
+            with stage_timer("vision", state.timings):
+                state.keyframes = extract_keyframes(
+                    state.video_path,
+                    threshold=self._cfg.keyframe_threshold,
+                    max_keyframes=self._cfg.max_keyframes,
+                )
+                align_to_transcript(state.keyframes, state.transcript)
 
             # Stage 5: synthesis.
-            self._synth.load()
-            captions = self._synth.generate_for_styles(keyframes, transcript, task.styles)
+            with stage_timer("synthesis", state.timings):
+                self._synth.load()
+                state.captions = self._synth.generate_for_styles(
+                    state.keyframes, state.transcript, task.styles
+                )
 
-            result = build_result(task.task_id, captions, task.styles)
+            result = build_result(task.task_id, state.captions, task.styles)
         except Exception as exc:  # noqa: BLE001 - isolate task failures
             logger.exception("Task %s failed: %s", task.task_id, exc)
-            result = build_result(task.task_id, {}, task.styles)
+            state.errors.append(str(exc))
+            result = build_result(task.task_id, state.captions, task.styles)
 
         latency = time.monotonic() - started
+        state.timings["total"] = latency
         if latency > self._cfg.per_request_budget_s:
             logger.warning(
                 "Task %s took %.1fs (>%.0fs budget).",

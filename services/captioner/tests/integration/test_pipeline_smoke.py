@@ -14,12 +14,6 @@ from app.pipeline.audio import Segment, Transcript, Word
 from app.pipeline.vision import Keyframe
 
 
-@pytest.fixture
-def settings(tmp_path: Path) -> Settings:
-    """Settings pointed at a temp working directory."""
-    return Settings(work_dir=tmp_path / "work", output_dir=tmp_path / "out")
-
-
 def _fake_transcript() -> Transcript:
     return Transcript(
         language="en",

@@ -23,6 +23,8 @@ Output (``/output/results.json``)::
 from __future__ import annotations
 
 from enum import StrEnum
+from pathlib import Path
+from typing import Any
 
 from pydantic import BaseModel, Field, RootModel, field_validator
 
@@ -46,17 +48,32 @@ class Task(BaseModel):
     video_url: str = Field(..., description="Publicly downloadable video URL.")
     styles: list[Style] = Field(..., min_length=1, description="Requested caption styles.")
 
-    @field_validator("styles")
+    @field_validator("styles", mode="before")
     @classmethod
-    def _dedupe_styles(cls, value: list[Style]) -> list[Style]:
-        """Drop duplicate styles while preserving request order."""
-        seen: set[Style] = set()
-        ordered: list[Style] = []
-        for style in value:
-            if style not in seen:
-                seen.add(style)
-                ordered.append(style)
-        return ordered
+    def _parse_and_dedupe_styles(cls, value: Any) -> Any:
+        """Filter out unknown styles with a warning, and deduplicate them."""
+        from app.core.logging import get_logger
+
+        logger = get_logger("app.core.schema")
+
+        if isinstance(value, list):
+            seen: set[Style] = set()
+            ordered: list[Style] = []
+            for item in value:
+                style = None
+                if isinstance(item, Style):
+                    style = item
+                elif isinstance(item, str):
+                    try:
+                        style = Style(item)
+                    except ValueError:
+                        logger.warning("Dropping unknown style: %s", item)
+                        continue
+                if style is not None and style not in seen:
+                    seen.add(style)
+                    ordered.append(style)
+            return ordered
+        return value
 
 
 class TaskInput(RootModel[list[Task]]):
@@ -106,3 +123,25 @@ class ResultsOutput(RootModel[list[ClipResult]]):
     def __len__(self) -> int:
         """Number of results."""
         return len(self.root)
+
+
+def load_tasks(path: Path | str) -> list[Task]:
+    """Parse and validate tasks from a JSON file.
+
+    Args:
+        path: Path to the tasks.json file.
+
+    Returns:
+        List of parsed Task objects.
+
+    Raises:
+        ValidationError: If structurally malformed.
+        json.JSONDecodeError: If not valid JSON.
+    """
+    import json
+    from pathlib import Path
+
+    path = Path(path)
+    with path.open("r", encoding="utf-8") as f:
+        data = json.load(f)
+    return TaskInput.model_validate(data).root

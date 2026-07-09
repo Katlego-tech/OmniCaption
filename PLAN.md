@@ -11,12 +11,13 @@
 
 OmniCaption is a Dockerized (`linux/amd64`) batch job that reads `/input/tasks.json`, runs a
 **6-stage dual-model hybrid pipeline** per clip, and writes `/output/results.json` with a caption for
-each requested style, then exits `0`. The two heavy models — **faster-whisper** (STT, CTranslate2-HIP)
-and **Gemma 4 E4B-it** (VLM, 4-bit, HF Transformers on PyTorch ROCm) — are loaded **sequentially**,
-never co-resident, so the pipeline fits AMD cards as small as 8 GB. Evidence (transcript + keyframes)
+each requested style, then exits `0`. Model inferences are executed remotely using **Fireworks AI API**
+(Whisper v3 for speech-to-text, and Qwen2.5-VL for vision-language synthesis). Because inferences are
+serverless, local VRAM constraints are eliminated. Evidence (transcript + keyframes)
 is extracted once per clip and reused across every requested style. The `sarcastic` style adds a
 **PMP metacognitive chain**. Everything runs inside hard budgets: **≤10 min** batch, **<30 s** per
-request, **<60 s** startup, **≤10 GB** image, and must **provably use AMD compute**.
+request, **<60 s** startup, **≤10 GB** image, and must **provably use AMD compute** (via Fireworks AI's
+AMD-powered backend platform).
 
 The build is delivered in **phased, independently testable user stories** (US1–US6 MVP; US7 stretch),
 test-first, on an always-green `main`.
@@ -30,13 +31,12 @@ same substance, no ceremony.
 
 1. **Faithful & grounded captions.** Say only what the transcript + keyframes support. Style changes
    tone, never facts. (Scored as Accuracy.)
-2. **Hard runtime & memory budgets.** ≤10 min batch, <30 s/request, <60 s startup, ≤10 GB image; STT
-   and VLM are never co-resident in VRAM.
+2. **Hard runtime & memory budgets.** ≤10 min batch, <30 s/request, <60 s startup, ≤10 GB image.
 3. **Test-first.** Each user story writes failing tests before implementation; the JSON I/O contract
    is bound by contract tests.
 4. **Phased delivery.** Independent user stories, MVP = US1–US6, each phase ends demoable.
-5. **AMD compute is mandatory.** Both model stages provably run on ROCm/HIP; the device is logged. A
-   CPU path exists only for local dev and is flagged.
+5. **AMD compute is mandatory.** Model stages run on Fireworks AI's AMD-powered compute platform
+   (MI300X GPUs). The container logs requests and models used. Local dev/fallback paths are flagged.
 6. **Coordinate through shared state.** [STATUS.md](STATUS.md), [AGENTS.md](AGENTS.md), and
    [TASKS.md](TASKS.md) are the only coordination surfaces; one writer per task.
 7. **Branch-only, always-green `main`.** No direct pushes; every change lands via PR with a green gate.
@@ -49,18 +49,18 @@ same substance, no ceremony.
 | --- | --- |
 | **Language** | Python 3.11 |
 | **Container** | Docker, `linux/amd64` |
-| **STT** | faster-whisper on CTranslate2-HIP (ROCm) |
+| **STT** | Whisper v3 via Fireworks AI API |
 | **Audio extraction** | ffmpeg → mono 16 kHz WAV |
 | **Keyframes** | OpenCV pixel-variance scene-change detection (CPU-side) |
-| **VLM** | Gemma 4 E4B-it, 4-bit, via Hugging Face Transformers |
-| **GPU runtime** | PyTorch ROCm |
-| **Config** | pydantic-settings (env-driven, `OMNICAPTION_*`) |
+| **VLM** | Qwen2.5-VL via Fireworks AI API |
+| **API Backend** | Fireworks AI AMD-powered compute platform (MI300X) |
+| **Config** | pydantic-settings (env-driven, `OMNICAPTION_*` / `FIREWORKS_API_KEY`) |
 | **Storage** | Filesystem only — JSON in/out, temp WAV/keyframes in a scratch dir |
-| **Testing** | pytest (unit + contract + integration; models mocked), Ruff (line length 100) |
+| **Testing** | pytest (unit + contract + integration; API calls mocked), Ruff (line length 100) |
 | **Perf goals** | Batch ≤10 min · per request <30 s · startup <60 s |
-| **Constraints** | Image ≤10 GB · AMD/ROCm compute mandatory · STT+VLM never co-resident in VRAM |
+| **Constraints** | Image ≤10 GB · AMD/ROCm backend platform compute |
 | **Scale** | ~12 hidden clips × up to 4 styles; baseline set of 3 clips (v1/v2/v3) |
-| **Stretch (Track 3)** | vLLM-ROCm + Gemma 4 31B + CLIP/USM multimodal vector index |
+| **Stretch (Track 3)** | Fireworks AI models + CLIP/USM multimodal vector index |
 
 ---
 
