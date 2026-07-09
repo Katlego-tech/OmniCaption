@@ -42,4 +42,6 @@ addopts = "-ra"
 markers = [
     "integration: end-to-end pipeline smoke tests (mocked models).",
     "contract: output JSON contract tests against the eval harness schema.",
+    "regression: golden-clip regression tests pinning tone-bearing surfaces (T096).",
+    "golden_live: opt-in live Fireworks run; needs FIREWORKS_API_KEY + OMNICAPTION_LIVE_TESTS=1.",
 ]
