@@ -109,3 +109,19 @@ def test_align_to_transcript_windows_words() -> None:
     assert keyframes[0].aligned_text == "hello"
     assert "brave" in keyframes[1].aligned_text
     assert "world" in keyframes[1].aligned_text
+
+
+def test_encode_image_to_base64() -> None:
+    """encode_image_to_base64 returns a non-empty string that decodes to the original dimensions."""
+    import base64
+
+    import cv2
+    image = np.zeros((10, 10, 3), dtype=np.uint8)
+    b64_str = vision.encode_image_to_base64(image)
+    assert isinstance(b64_str, str)
+    assert len(b64_str) > 0
+
+    # Decode and check shape
+    img_data = base64.b64decode(b64_str)
+    decoded = cv2.imdecode(np.frombuffer(img_data, np.uint8), cv2.IMREAD_COLOR)
+    assert decoded.shape == (10, 10, 3)

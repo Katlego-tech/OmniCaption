@@ -7,6 +7,7 @@ All values are overridable through ``OMNICAPTION_*`` environment variables (see
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 from pydantic import Field
@@ -59,6 +60,24 @@ class Settings(BaseSettings):
     gemma_model_id: str = Field(
         default="google/gemma-4-e4b-it",
         description="HF Transformers repo id for the Gemma 4 E4B-it VLM.",
+    )
+
+    # --- Fireworks AI API config ---
+    fireworks_api_key: str | None = Field(
+        default_factory=lambda: os.getenv("FIREWORKS_API_KEY"),
+        description="Fireworks AI API key for remote model inference.",
+    )
+    fireworks_api_url: str = Field(
+        default="https://api.fireworks.ai/inference/v1",
+        description="Fireworks AI API base URL.",
+    )
+    fireworks_whisper_model: str = Field(
+        default="whisper-v3",
+        description="Fireworks AI Whisper model identifier.",
+    )
+    fireworks_vlm_model: str = Field(
+        default="accounts/fireworks/models/qwen2-vl-72b-instruct",
+        description="Fireworks AI Vision-Language Model identifier.",
     )
 
     # --- Vision ---

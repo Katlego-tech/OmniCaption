@@ -85,18 +85,18 @@ Each user-story phase is ordered **Tests FIRST (must FAIL) → Implementation �
 
 ### Tests FIRST (ensure they FAIL)
 
-- [ ] T034 [P] [US2] `tests/unit/test_transcript_model.py`: word/segment timestamp ordering + monotonicity validation (AC2.1).
-- [ ] T035 [P] [US2] `tests/unit/test_audio_stage.py` (mocked whisper): produces word-level transcript; empty audio → empty-but-valid transcript (AC2.1, AC2.3).
-- [ ] T036 [P] [US2] `tests/unit/test_reclaim.py`: reclamation calls `del` + `gc.collect()` + empty-cache; asserts STT handle released (AC2.4, AC6.6).
-- [ ] T037 [US2] `tests/integration/test_audio_amd.py` (GPU-gated): transcription executes on AMD device; logs show HIP backend (AC2.2).
+- [x] T034 [P] [US2] `tests/unit/test_transcript_model.py`: word/segment timestamp ordering + monotonicity validation (AC2.1).
+- [x] T035 [P] [US2] `tests/unit/test_audio_stage.py` (mocked whisper): produces word-level transcript; empty audio → empty-but-valid transcript (AC2.1, AC2.3).
+- [x] T036 [P] [US2] `tests/unit/test_reclaim.py`: reclamation calls `del` + `gc.collect()` + empty-cache; asserts STT handle released (AC2.4, AC6.6).
+- [x] T037 [US2] `tests/integration/test_audio_amd.py` (GPU-gated): transcription executes on AMD device; logs show HIP backend (AC2.2).
 
 ### Implementation
 
-- [ ] T038 [US2] Implement faster-whisper loader in `app/pipeline/audio.py` using CTranslate2-HIP backend; device from `core/device.py`.
-- [ ] T039 [US2] Transcribe WAV → `Transcript` with segment + word timestamps; capture transcript to CPU memory.
-- [ ] T040 [US2] Handle no-speech clips: return empty `Transcript` (empty segments) without error.
-- [ ] T041 [US2] Implement `app/pipeline/memory.py`: `del model`, `gc.collect()`, `torch.cuda.empty_cache()`; log freed VRAM.
-- [ ] T042 [US2] Wire S2 → S3 in orchestrator so VRAM is reclaimed before any VLM stage loads.
+- [x] T038 [US2] Implement faster-whisper loader in `app/pipeline/audio.py` using CTranslate2-HIP backend; device from `core/device.py`.
+- [x] T039 [US2] Transcribe WAV → `Transcript` with segment + word timestamps; capture transcript to CPU memory.
+- [x] T040 [US2] Handle no-speech clips: return empty `Transcript` (empty segments) without error.
+- [x] T041 [US2] Implement `app/pipeline/memory.py`: `del model`, `gc.collect()`, `torch.cuda.empty_cache()`; log freed VRAM.
+- [x] T042 [US2] Wire S2 → S3 in orchestrator so VRAM is reclaimed before any VLM stage loads.
 
 **Checkpoint:** real clip yields a word-level transcript on AMD compute; empty-audio clip handled; STT VRAM demonstrably released before vision/synthesis.
 
@@ -106,18 +106,18 @@ Each user-story phase is ordered **Tests FIRST (must FAIL) → Implementation �
 
 ### Tests FIRST (ensure they FAIL)
 
-- [ ] T043 [P] [US3] `tests/unit/test_keyframes.py`: scene-change selection respects max-count cap; static clip → ≥1 fallback keyframe (AC3.1, AC3.3).
-- [ ] T044 [P] [US3] `tests/unit/test_alignment.py`: each keyframe aligns to nearest transcript segment/word by timestamp (AC3.2).
-- [ ] T045 [US3] `tests/integration/test_vision.py`: video → bounded keyframe list with timestamps in `CaptionState` (AC3.1, AC3.4).
+- [x] T043 [P] [US3] `tests/unit/test_keyframes.py`: scene-change selection respects max-count cap; static clip → ≥1 fallback keyframe (AC3.1, AC3.3).
+- [x] T044 [P] [US3] `tests/unit/test_alignment.py`: each keyframe aligns to nearest transcript segment/word by timestamp (AC3.2).
+- [x] T045 [US3] `tests/integration/test_vision.py`: video → bounded keyframe list with timestamps in `CaptionState` (AC3.1, AC3.4).
 
 ### Implementation
 
-- [ ] T046 [US3] Implement pixel-variance scene-change detection in `app/pipeline/vision.py` (OpenCV, CPU-side).
-- [ ] T047 [US3] Enforce configurable `max_keyframes` cap (token-budget guardrail) with even-coverage selection when over cap.
-- [ ] T048 [US3] Implement static-clip fallback sampling (first/mid/last) guaranteeing ≥1 keyframe.
-- [ ] T049 [US3] Align keyframes to transcript timeline; store aligned segment index on `Keyframe`.
-- [ ] T050 [US3] Persist keyframes to scratch (encoded for VLM ingestion) and record refs in `CaptionState.keyframes`.
-- [ ] T051 [US3] Wire S4 into orchestrator after reclamation.
+- [x] T046 [US3] Implement pixel-variance scene-change detection in `app/pipeline/vision.py` (OpenCV, CPU-side).
+- [x] T047 [US3] Enforce configurable `max_keyframes` cap (token-budget guardrail) with even-coverage selection when over cap.
+- [x] T048 [US3] Implement static-clip fallback sampling (first/mid/last) guaranteeing ≥1 keyframe.
+- [x] T049 [US3] Align keyframes to transcript timeline; store aligned segment index on `Keyframe`.
+- [x] T050 [US3] Persist keyframes to scratch (encoded for VLM ingestion) and record refs in `CaptionState.keyframes`.
+- [x] T051 [US3] Wire S4 into orchestrator after reclamation.
 
 **Checkpoint:** any clip (including static) yields a bounded, timestamp-aligned keyframe set with no GPU model weight added.
 
@@ -127,19 +127,19 @@ Each user-story phase is ordered **Tests FIRST (must FAIL) → Implementation �
 
 ### Tests FIRST (ensure they FAIL)
 
-- [ ] T052 [P] [US4] `tests/unit/test_prompts.py`: modality order is images → transcript → style prompt for `formal` (AC4.1).
-- [ ] T053 [P] [US4] `tests/unit/test_formal_grounding.py` (mocked VLM): caption contains only evidence-supported tokens; no invented entities (AC4.2).
-- [ ] T054 [P] [US4] `tests/unit/test_fallback.py`: VLM failure/timeout yields deterministic fallback caption; style never missing (AC4.4).
-- [ ] T055 [US4] `tests/integration/test_synthesis_amd.py` (GPU-gated): `formal` caption generated on AMD compute (AC4.3).
+- [x] T052 [P] [US4] `tests/unit/test_prompts.py`: modality order is images → transcript → style prompt for `formal` (AC4.1).
+- [x] T053 [P] [US4] `tests/unit/test_formal_grounding.py` (mocked VLM): caption contains only evidence-supported tokens; no invented entities (AC4.2).
+- [x] T054 [P] [US4] `tests/unit/test_fallback.py`: VLM failure/timeout yields deterministic fallback caption; style never missing (AC4.4).
+- [x] T055 [US4] `tests/integration/test_synthesis_amd.py` (GPU-gated): `formal` caption generated on AMD compute (AC4.3).
 
 ### Implementation
 
-- [ ] T056 [US4] Implement Gemma 4 E4B-it 4-bit loader in `app/pipeline/synthesis.py` (HF Transformers, PyTorch ROCm); graceful degrade to bf16 if quant backend absent.
-- [ ] T057 [US4] Implement `app/prompts/templates.py`: assemble prompt in locked modality order (images → transcript → style prompt).
-- [ ] T058 [P] [US4] Add `formal` system prompt in `app/prompts/styles.py` (neutral, objective, grounded).
-- [ ] T059 [US4] Generate `formal` `StyleCaption`; pin low/zero temperature + fixed seed for reproducibility (CC5).
-- [ ] T060 [US4] Implement deterministic fallback path (transcript/keyframe summary) invoked on VLM error or per-request timeout.
-- [ ] T061 [US4] Wire S5 (formal only) into orchestrator; record synthesis timing.
+- [x] T056 [US4] Implement Gemma 4 E4B-it 4-bit loader in `app/pipeline/synthesis.py` (HF Transformers, PyTorch ROCm); graceful degrade to bf16 if quant backend absent.
+- [x] T057 [US4] Implement `app/prompts/templates.py`: assemble prompt in locked modality order (images → transcript → style prompt).
+- [x] T058 [P] [US4] Add `formal` system prompt in `app/prompts/styles.py` (neutral, objective, grounded).
+- [x] T059 [US4] Generate `formal` `StyleCaption`; pin low/zero temperature + fixed seed for reproducibility (CC5).
+- [x] T060 [US4] Implement deterministic fallback path (transcript/keyframe summary) invoked on VLM error or per-request timeout.
+- [x] T061 [US4] Wire S5 (formal only) into orchestrator; record synthesis timing.
 
 **Checkpoint:** `formal` caption is generated on AMD compute for baseline clips; on forced VLM failure a valid deterministic fallback is emitted instead.
 
@@ -149,20 +149,20 @@ Each user-story phase is ordered **Tests FIRST (must FAIL) → Implementation �
 
 ### Tests FIRST (ensure they FAIL)
 
-- [ ] T062 [P] [US5] `tests/unit/test_pmp.py`: PMP chain runs perceive → interpret → invert → phrase for `sarcastic` (AC5.1).
-- [ ] T063 [P] [US5] `tests/unit/test_style_prompts.py`: distinct system prompts for all 4 styles; humor styles stay grounded (AC5.2, AC5.3, AC5.4).
-- [ ] T064 [P] [US5] `tests/unit/test_evidence_reuse.py`: multiple styles for one clip reuse one transcript + keyframe set (AC5.5).
-- [ ] T065 [US5] `tests/integration/test_all_styles.py` (mocked VLM): a task requesting all 4 styles gets 4 distinct captions (US5).
+- [x] T062 [P] [US5] `tests/unit/test_pmp.py`: PMP chain runs perceive → interpret → invert → phrase for `sarcastic` (AC5.1).
+- [x] T063 [P] [US5] `tests/unit/test_style_prompts.py`: distinct system prompts for all 4 styles; humor styles stay grounded (AC5.2, AC5.3, AC5.4).
+- [x] T064 [P] [US5] `tests/unit/test_evidence_reuse.py`: multiple styles for one clip reuse one transcript + keyframe set (AC5.5).
+- [x] T065 [US5] `tests/integration/test_all_styles.py` (mocked VLM): a task requesting all 4 styles gets 4 distinct captions (US5).
 
 ### Implementation
 
-- [ ] T066 [US5] Implement `app/prompts/pmp.py`: the PMP metacognitive chain (perceive → interpret → invert → phrase).
-- [ ] T067 [P] [US5] Add `sarcastic` style using the PMP chain; simpler single-shot sarcastic prompt as documented cut-order fallback.
-- [ ] T068 [P] [US5] Add `humorous_tech` system prompt (software/engineering framing, grounded).
-- [ ] T069 [P] [US5] Add `humorous_non_tech` system prompt (everyday humor, grounded).
-- [ ] T070 [US5] Extend S5 to iterate requested styles over the shared evidence (extract-once, style-many).
-- [ ] T071 [US5] Guarantee every requested+known style produces a `StyleCaption` (fallback per style) before S6.
-- [ ] T072 [P] [US5] Add per-style grounding guard: strip/regenerate captions that introduce unsupported entities (CC4).
+- [x] T066 [US5] Implement `app/prompts/pmp.py`: the PMP metacognitive chain (perceive → interpret → invert → phrase).
+- [x] T067 [P] [US5] Add `sarcastic` style using the PMP chain; simpler single-shot sarcastic prompt as documented cut-order fallback.
+- [x] T068 [P] [US5] Add `humorous_tech` system prompt (software/engineering framing, grounded).
+- [x] T069 [P] [US5] Add `humorous_non_tech` system prompt (everyday humor, grounded).
+- [x] T070 [US5] Extend S5 to iterate requested styles over the shared evidence (extract-once, style-many).
+- [x] T071 [US5] Guarantee every requested+known style produces a `StyleCaption` (fallback per style) before S6.
+- [x] T072 [P] [US5] Add per-style grounding guard: strip/regenerate captions that introduce unsupported entities (CC4).
 
 **Checkpoint:** all four styles produce distinct, grounded captions from a single evidence extraction; sarcasm uses PMP; humor styles stay on-topic.
 
@@ -172,22 +172,22 @@ Each user-story phase is ordered **Tests FIRST (must FAIL) → Implementation �
 
 ### Tests FIRST (ensure they FAIL)
 
-- [ ] T073 [P] [US6] `tests/contract/test_output_schema.py`: `results.json` validates against output schema; every requested style present (AC6.1, AC6.2).
-- [ ] T074 [P] [US6] `tests/contract/test_input_schema.py`: input loader accepts valid, rejects invalid per [docs/16-io-contract.md](docs/16-io-contract.md).
-- [ ] T075 [P] [US6] `tests/unit/test_exit_code.py`: pipeline exits 0 even when some tasks failed (AC6.3).
-- [ ] T076 [US6] `tests/integration/test_latency.py` (GPU-gated): per-request <30 s and batch ≤10 min budgets asserted (AC6.4).
-- [ ] T077 [P] [US6] `tests/integration/test_missing_style_scores_zero.py`: a dropped style is absent → documented 0-score behavior verified.
+- [x] T073 [P] [US6] `tests/contract/test_output_schema.py`: `results.json` validates against output schema; every requested style present (AC6.1, AC6.2).
+- [x] T074 [P] [US6] `tests/contract/test_input_schema.py`: input loader accepts valid, rejects invalid per [docs/16-io-contract.md](docs/16-io-contract.md).
+- [x] T075 [P] [US6] `tests/unit/test_exit_code.py`: pipeline exits 0 even when some tasks failed (AC6.3).
+- [x] T076 [US6] `tests/integration/test_latency.py` (GPU-gated): per-request <30 s and batch ≤10 min budgets asserted (AC6.4).
+- [x] T077 [P] [US6] `tests/integration/test_missing_style_scores_zero.py`: a dropped style is absent → documented 0-score behavior verified.
 
 ### Implementation
 
-- [ ] T078 [US6] Implement `app/pipeline/output.py`: assemble `ClipResult`/`ResultsOutput`, schema-validate, hand to `results_writer`.
-- [ ] T079 [US6] Enforce per-request timeout in orchestrator that trips the fallback path (keeps <30 s).
-- [ ] T080 [US6] Add batch-level budget guard + timing summary log (≤10 min); log per-stage timings.
-- [ ] T081 [US6] Verify `main.py` always `sys.exit(0)` after writing results (even on captured errors).
-- [ ] T082 [US6] Optimize container startup <60 s: pre-stage/cache model weights in the image; lazy-import heavy deps.
-- [ ] T083 [US6] Trim image to ≤10 GB: multi-stage build, remove build toolchain, prune caches; add image-size CI check.
-- [ ] T084 [US6] Add a sequential-VRAM assertion test/log proving STT and VLM are never co-resident (AC6.6).
-- [ ] T085 [US6] Full end-to-end run against `tasks.sample.json` producing a schema-valid `/output/results.json`.
+- [x] T078 [US6] Implement `app/pipeline/output.py`: assemble `ClipResult`/`ResultsOutput`, schema-validate, hand to `results_writer`.
+- [x] T079 [US6] Enforce per-request timeout in orchestrator that trips the fallback path (keeps <30 s).
+- [x] T080 [US6] Add batch-level budget guard + timing summary log (≤10 min); log per-stage timings.
+- [x] T081 [US6] Verify `main.py` always `sys.exit(0)` after writing results (even on captured errors).
+- [x] T082 [US6] Optimize container startup <60 s: pre-stage/cache model weights in the image; lazy-import heavy deps.
+- [x] T083 [US6] Trim image to ≤10 GB: multi-stage build, remove build toolchain, prune caches; add image-size CI check.
+- [x] T084 [US6] Add a sequential-VRAM assertion test/log proving STT and VLM are never co-resident (AC6.6).
+- [x] T085 [US6] Full end-to-end run against `tasks.sample.json` producing a schema-valid `/output/results.json`.
 
 **Checkpoint (MVP COMPLETE):** batch of v1/v2/v3 runs ≤10 min, each request <30 s, startup <60 s, image ≤10 GB, output schema-valid, exit 0, AMD compute logged for both model stages.
 

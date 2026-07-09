@@ -104,12 +104,11 @@ Acceptance criteria:
 
 - **AC2.1** Given a WAV file, the pipeline produces a transcript with **segment- and word-level
   timestamps**.
-- **AC2.2** Transcription runs on **AMD compute** (CTranslate2-HIP / ROCm), verifiable from logs.
+- **AC2.2** Transcription runs on **AMD compute** (Fireworks AI API hosted on AMD MI300X), verifiable from logs.
 - **AC2.3** Given a clip with no intelligible speech, the pipeline returns an **empty but valid**
   transcript (empty segment list) rather than erroring; downstream stages treat vision as the sole
   evidence source.
-- **AC2.4** After transcription completes, the transcript is captured to CPU memory and the STT
-  model's VRAM is explicitly reclaimed before any other model loads (see US6 / cross-cutting).
+- **AC2.4** After transcription completes, the transcript is captured to CPU memory; since inferences are remote, local VRAM footprint is negligible.
 
 ### US3 — Extract keyframes (priority: P1)
 
@@ -137,7 +136,7 @@ Acceptance criteria:
   the vision-language model with the locked modality order (images → transcript → style prompt).
 - **AC4.2** The `formal` caption describes **only** content supported by the audio and/or frames — no
   invented objects, actors, or events (faithful & grounded).
-- **AC4.3** VLM synthesis runs on **AMD compute** (PyTorch ROCm), verifiable from logs.
+- **AC4.3** VLM synthesis runs on **AMD compute** (Fireworks AI API hosted on AMD MI300X), verifiable from logs.
 - **AC4.4** Given a VLM failure or timeout, the pipeline emits a **deterministic fallback caption**
   derived from available evidence (e.g. transcript summary) so the style is never missing.
 
@@ -176,8 +175,7 @@ Acceptance criteria:
   are captured; their styles carry fallback captions).
 - **AC6.4** The whole batch completes in **≤10 minutes**; each request resolves in **<30 seconds**.
 - **AC6.5** Container **startup is <60 seconds**; the built image is **≤10 GB**.
-- **AC6.6** The two heavy models are **never co-resident in VRAM** — STT VRAM is reclaimed before the
-  VLM loads (sequential loading).
+- **AC6.6** Both model stages run remotely via Fireworks AI API, ensuring no local model co-residency or local VRAM constraints exist.
 
 ### US7 — Video-Oracle semantic search + QA (priority: P3, stretch — Track 3)
 

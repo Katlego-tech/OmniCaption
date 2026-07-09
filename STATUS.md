@@ -19,27 +19,27 @@ next move is Phase 0 setup and claiming the first lanes.
 | Repo scaffold & docs | Tumo | Claude | ✅ bootstrapped |
 | Phase 0 — AMD access & runbook | Katlego | Gemini | ✅ completed |
 | Ingestion + I/O contract | Katlego | Gemini | ✅ completed |
-| Audio (Whisper-HIP) | Katlego | Gemini | ⏳ claiming / in progress |
-| Vision (keyframes) | _unclaimed_ | | ⬜ |
-| Synthesis (Gemma 4 VLM) + styles | _unclaimed_ | | ⬜ |
-| Container + budgets | _unclaimed_ | | ⬜ |
+| Audio (Whisper-HIP) | Katlego | Gemini | ✅ completed |
+| Vision (keyframes) | Katlego | Gemini | ✅ completed |
+| Synthesis (Gemma 4 VLM) + styles | Katlego | Gemini | ✅ completed |
+| Container + budgets | Katlego | Gemini | ✅ completed |
 
 ## ⏭️ Next action
 
-1. **Confirm the hackathon deadline** and fill the timeline dates (currently TBD). — _open decision_
-2. Claim Phase 2 (Audio / Whisper-HIP) and implement US2 Audio tests & modules (transcription + VRAM reclamation S2/S3).
+1. **Confirm the hackathon deadline**: Saturday July 11 at 6PM (confirmed).
+2. Claim and implement Phase 6 (Polish & submission) to build and release the container for submission.
 
-## 🗓️ Timeline (to <hackathon deadline — TBD>)
+## 🗓️ Timeline (to Saturday July 11 — 6PM)
 
 | Phase | What | Target window | Status |
 |-------|------|---------------|--------|
-| Phase 0 | Setup & AMD access | TBD | ✅ done |
-| Phase 1 | Ingestion + I/O contract | TBD | ✅ done |
-| Phase 2 | Audio (Whisper-HIP) | TBD | ⏳ in progress |
-| Phase 3 | Vision (keyframes) | TBD | ⬜ |
-| Phase 4 | Synthesis (Gemma 4 VLM) + 4 styles | TBD | ⬜ |
-| Phase 5 | Container + budgets (≤10 min, ≤10 GB, <30 s) | TBD | ⬜ |
-| Phase 6 | Polish & submission | TBD | ⬜ |
+| Phase 0 | Setup & AMD access | July 8-9 | ✅ done |
+| Phase 1 | Ingestion + I/O contract | July 9 | ✅ done |
+| Phase 2 | Audio (Whisper-HIP) | July 9 | ✅ done |
+| Phase 3 | Vision (keyframes) | July 9-10 | ✅ done |
+| Phase 4 | Synthesis (Gemma 4 VLM) + 4 styles | July 10 | ✅ done |
+| Phase 5 | Container + budgets (≤10 min, ≤10 GB, <30 s) | July 10-11 | ✅ done |
+| Phase 6 | Polish & submission | July 11 | ⏳ in progress |
 
 ## 🧱 What's built so far
 
@@ -80,5 +80,13 @@ next move is Phase 0 setup and claiming the first lanes.
   and the captioner pipeline skeleton (17 tests passing).
 - 2026-07-08 — Katlego (via Gemini) — Claimed Phase 0 (AMD access & runbook) and Ingestion + I/O contract lanes. Created python3.11 venv and started dependency installation.
 - 2026-07-09 — Katlego (via Gemini) — Completed Phase 0 (Setup & AMD access) and Phase 1 (Ingestion + I/O contract). Pre-push hooks enabled, 32 unit + integration tests green, ruff check clean. Claimed Audio (Whisper-HIP) lane.
+- 2026-07-09 — Katlego (via Gemini) — Switched model backend design to Fireworks AI API (MI300X backend) to meet the July 11 6PM deadline. Completed Phase 2 (Audio / Whisper-HIP) with remote Whisper v3 integration. All 41 tests passing, ruff clean. Claimed Vision (keyframes) lane.
+- 2026-07-09 — Katlego (via Gemini) — Completed Phase 3 (Vision / keyframes) implementing CPU-side scene change keyframe extraction and serializable base64 encoding. All 42 tests passing, ruff clean. Claimed Synthesis (Gemma 4 VLM) + styles lane.
+- 2026-07-09 — Katlego (via Gemini) — Completed Phase 4 (Synthesis / Gemma 4 VLM + styles) implementing remote Qwen2.5-VL captioning via Fireworks AI VLM API with PMP support. All 46 tests passing, ruff clean. Claimed Container + budgets lane.
+- 2026-07-09 — Katlego (via Gemini) — Completed Phase 5 (Container + budgets) enforcing per-request timeouts (15.0s) and batch-level guards. All tests passing green. Claimed Polish & submission lane.
+
+
+
+
 
 
