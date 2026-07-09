@@ -23,6 +23,7 @@ Planning is now self-driven through [SPEC.md](SPEC.md) / [PLAN.md](PLAN.md) / [T
 | Container + budgets | Katlego | Gemini | ✅ completed |
 | Polish: submission checklist + smoke/doc drift (T097, T100) | Tumo | Claude | 🔄 PR open |
 | Polish: golden-clip regression tests (T096) | Tumo | Claude | 🔄 PR open |
+| Polish: planning-doc reconciliation (T101 part 1) | Tumo | Claude | 🔄 PR open |
 | Polish: AMD proof + image push (T095, T099) | Katlego | Gemini | ⬜ open |
 
 ## ⏭️ Next action
@@ -115,6 +116,13 @@ Planning is now self-driven through [SPEC.md](SPEC.md) / [PLAN.md](PLAN.md) / [T
   regenerate goldens via `tests/regression/regen_goldens.py` in the same PR. Added an opt-in
   live Fireworks structural test (gated on `FIREWORKS_API_KEY` + `OMNICAPTION_LIVE_TESTS=1`,
   never runs in CI). Suite now 49 green + 1 gated skip, ruff clean.
+- 2026-07-09 — Tumo (via Claude) — T101 part 1: reconciled the planning docs with the shipped
+  hybrid stack (PROPOSAL — Katlego please confirm the STT decision). PLAN.md summary/tech-table/
+  non-negotiable V now say: local faster-whisper STT (HIP in container) + remote Fireworks
+  Kimi-K2P6 VLM; SPEC.md AC2.2/AC2.4/AC6.6/CC2/CC3 updated to the hybrid AMD-proof story;
+  AC5.1 updated to single-shot sarcasm (PMP retired — the documented cut-order fallback);
+  CLAUDE.md/GEMINI.md "locked stack" + stage list updated with a pointer to this plan change.
+  Release tagging (T101 part 2) waits for T095/T099/T102.
 
 
 

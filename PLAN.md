@@ -11,13 +11,17 @@
 
 OmniCaption is a Dockerized (`linux/amd64`) batch job that reads `/input/tasks.json`, runs a
 **6-stage dual-model hybrid pipeline** per clip, and writes `/output/results.json` with a caption for
-each requested style, then exits `0`. Model inferences are executed remotely using **Fireworks AI API**
-(Whisper v3 for speech-to-text, and Qwen2.5-VL for vision-language synthesis). Because inferences are
-serverless, local VRAM constraints are eliminated. Evidence (transcript + keyframes)
-is extracted once per clip and reused across every requested style. The `sarcastic` style adds a
-**PMP metacognitive chain**. Everything runs inside hard budgets: **≤10 min** batch, **<30 s** per
-request, **<60 s** startup, **≤10 GB** image, and must **provably use AMD compute** (via Fireworks AI's
-AMD-powered backend platform).
+each requested style, then exits `0`. The model split is **hybrid**: speech-to-text runs **locally**
+with faster-whisper (CTranslate2 — HIP in the container, int8 CPU fallback for dev), and
+vision-language synthesis runs **remotely** on the **Fireworks AI API** (Kimi-K2P6, served on
+Fireworks' AMD MI300X platform). Local VRAM therefore still matters for the STT stage: Whisper is
+unloaded and VRAM reclaimed before synthesis. Evidence (transcript + keyframes) is extracted once
+per clip and reused across every requested style. All styles are single-shot persona prompts; the
+model's reasoning is kept outside `<captionStyle>` tags and only the tagged caption is extracted
+(the PMP chain was retired from the runtime path to avoid token truncation on reasoning VLMs).
+Everything runs inside hard budgets: **≤10 min** batch, **<30 s** per request, **<60 s** startup,
+**≤10 GB** image, and must **provably use AMD compute** (local ROCm/HIP for STT + Fireworks'
+AMD-powered backend for the VLM).
 
 The build is delivered in **phased, independently testable user stories** (US1–US6 MVP; US7 stretch),
 test-first, on an always-green `main`.
@@ -35,8 +39,9 @@ same substance, no ceremony.
 3. **Test-first.** Each user story writes failing tests before implementation; the JSON I/O contract
    is bound by contract tests.
 4. **Phased delivery.** Independent user stories, MVP = US1–US6, each phase ends demoable.
-5. **AMD compute is mandatory.** Model stages run on Fireworks AI's AMD-powered compute platform
-   (MI300X GPUs). The container logs requests and models used. Local dev/fallback paths are flagged.
+5. **AMD compute is mandatory.** STT runs on local ROCm/HIP inside the container (device logged at
+   runtime); VLM synthesis runs on Fireworks AI's AMD-powered compute platform (MI300X GPUs), with
+   requests and model ids logged. Local dev/fallback paths (CPU whisper) are flagged in logs.
 6. **Coordinate through shared state.** [STATUS.md](STATUS.md), [AGENTS.md](AGENTS.md), and
    [TASKS.md](TASKS.md) are the only coordination surfaces; one writer per task.
 7. **Branch-only, always-green `main`.** No direct pushes; every change lands via PR with a green gate.
@@ -49,11 +54,11 @@ same substance, no ceremony.
 | --- | --- |
 | **Language** | Python 3.11 |
 | **Container** | Docker, `linux/amd64` |
-| **STT** | Whisper v3 via Fireworks AI API |
+| **STT** | faster-whisper `large-v3` (CTranslate2 — HIP in container, int8 CPU for dev), local |
 | **Audio extraction** | ffmpeg → mono 16 kHz WAV |
-| **Keyframes** | OpenCV pixel-variance scene-change detection (CPU-side) |
-| **VLM** | Qwen2.5-VL via Fireworks AI API |
-| **API Backend** | Fireworks AI AMD-powered compute platform (MI300X) |
+| **Keyframes** | OpenCV pixel-variance scene-change detection (CPU-side), ≤1024 px per frame |
+| **VLM** | Kimi-K2P6 via Fireworks AI API (`OMNICAPTION_FIREWORKS_VLM_MODEL`) |
+| **API Backend** | Fireworks AI AMD-powered compute platform (MI300X) for the VLM stage |
 | **Config** | pydantic-settings (env-driven, `OMNICAPTION_*` / `FIREWORKS_API_KEY`) |
 | **Storage** | Filesystem only — JSON in/out, temp WAV/keyframes in a scratch dir |
 | **Testing** | pytest (unit + contract + integration; API calls mocked), Ruff (line length 100) |
@@ -90,13 +95,13 @@ services/captioner/
 │   │   ├── audio.py            # S2: faster-whisper (HIP) transcript + word timestamps (+ Transcript types)
 │   │   ├── memory.py           # S3: reclaim_vram() — del model, gc.collect(), empty_cache()
 │   │   ├── vision.py           # S4: OpenCV keyframes + transcript alignment (+ Keyframe type)
-│   │   ├── synthesis.py        # S5: Gemma 4 E4B 4-bit; images→transcript→style prompt; PMP for sarcasm
+│   │   ├── synthesis.py        # S5: Fireworks VLM API; system=persona+tag rules, user=images→transcript
 │   │   └── output.py           # S6: assemble ClipResult, schema-validate, atomic write
 │   ├── prompts/
 │   │   ├── styles.py           # the 4 style system prompts
-│   │   └── pmp.py              # PMP metacognitive chain for sarcasm
+│   │   └── pmp.py              # PMP chain (retired from runtime; kept as documented fallback)
 │   └── models/
-│       └── loader.py           # load_whisper / load_gemma_vlm (4-bit config, device placement)
+│       └── loader.py           # load_whisper (CT2 device placement) + legacy local-VLM loader
 └── tests/
     ├── unit/                   # test_schema, test_vision, test_styles (models mocked)
     ├── integration/            # test_pipeline_smoke (full run, mocked models)
@@ -157,8 +162,9 @@ Mirrors [TASKS.md](TASKS.md):
 3. **US1 Ingestion** — download + WAV extraction (S1).
 4. **US2 Audio** — faster-whisper HIP transcription + word timestamps (S2) + memory reclamation (S3).
 5. **US3 Vision** — OpenCV keyframes + transcript alignment (S4).
-6. **US4 Formal synthesis** — Gemma 4 E4B 4-bit, modality ordering, `formal` caption (S5) + fallback.
-7. **US5 Humor/sarcasm** — `sarcastic` (PMP), `humorous_tech`, `humorous_non_tech` (S5).
+6. **US4 Formal synthesis** — Fireworks VLM, modality ordering, `formal` caption (S5) + fallback.
+7. **US5 Humor/sarcasm** — `sarcastic`, `humorous_tech`, `humorous_non_tech` (S5; single-shot
+   persona prompts — PMP retired to avoid reasoning-VLM token truncation).
 8. **US6 Output + limits + container** — schema-valid `results.json`, exit 0, budget/latency
    enforcement, ≤10 GB image, <60 s startup, sequential VRAM verified (S6).
 9. **US7 Video-Oracle (stretch)** — vLLM-ROCm + Gemma 4 31B + CLIP/USM index.
