@@ -15,7 +15,6 @@ from app.core.config import Settings
 from app.core.errors import SynthesisError
 from app.core.logging import get_logger
 from app.core.schema import Style
-from app.prompts.pmp import PMP_INSTRUCTION
 from app.prompts.styles import get_style_prompt
 
 if TYPE_CHECKING:
@@ -85,9 +84,6 @@ class CaptionSynthesizer:
 
         # 3. System prompt with formatting instructions
         system_instructions: list[str] = []
-        if style is Style.SARCASTIC:
-            system_instructions.append(PMP_INSTRUCTION)
-
         system_instructions.append(get_style_prompt(style))
 
         # Append XML tag requirement to enforce reasoning/content separation on reasoning VLMs
@@ -147,7 +143,7 @@ class CaptionSynthesizer:
         }
 
         try:
-            response = requests.post(url, headers=headers, json=payload, timeout=15.0)
+            response = requests.post(url, headers=headers, json=payload, timeout=60.0)
         except Exception as exc:
             raise SynthesisError(f"HTTP request to Fireworks Vision API failed: {exc}") from exc
 

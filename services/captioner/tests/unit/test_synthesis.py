@@ -11,7 +11,6 @@ from app.core.schema import Style
 from app.pipeline.audio import Transcript
 from app.pipeline.synthesis import CaptionSynthesizer
 from app.pipeline.vision import Keyframe
-from app.prompts.pmp import PMP_INSTRUCTION
 
 
 @pytest.fixture
@@ -36,7 +35,7 @@ def test_modality_order_and_pmp(settings_with_key: Settings) -> None:
     assert messages[1]["role"] == "user"
 
     system_content = messages[0]["content"]
-    assert "expert, objective video archivist" in system_content
+    assert "meticulous archival captioner" in system_content
     assert "<captionStyle>" in system_content
 
     user_content = messages[1]["content"]
@@ -46,7 +45,7 @@ def test_modality_order_and_pmp(settings_with_key: Settings) -> None:
     assert user_content[1]["type"] == "text"
     assert "Transcript:\nTest transcript" in user_content[1]["text"]
 
-    # Test sarcastic style (includes PMP in system message)
+    # Test sarcastic style (no PMP in system message)
     messages_sarcastic = synth._build_messages(
         keyframes, "Test transcript", Style.SARCASTIC
     )
@@ -55,8 +54,7 @@ def test_modality_order_and_pmp(settings_with_key: Settings) -> None:
     assert messages_sarcastic[1]["role"] == "user"
 
     system_content_sarc = messages_sarcastic[0]["content"]
-    assert PMP_INSTRUCTION in system_content_sarc
-    assert "highly cynical, grumpy critic" in system_content_sarc
+    assert "dry, unimpressed critic" in system_content_sarc
 
     user_content_sarc = messages_sarcastic[1]["content"]
     assert len(user_content_sarc) == 2

@@ -76,7 +76,7 @@ class Settings(BaseSettings):
         description="Fireworks AI Whisper model identifier.",
     )
     fireworks_vlm_model: str = Field(
-        default="accounts/fireworks/models/kimi-k2p5",
+        default="accounts/fireworks/models/kimi-k2p6",
         description="Fireworks AI Vision-Language Model identifier.",
     )
 
@@ -92,7 +92,7 @@ class Settings(BaseSettings):
 
     # --- Synthesis / generation ---
     max_new_tokens: int = Field(
-        default=256,
+        default=1024,
         description="Maximum tokens generated per caption.",
     )
     load_in_4bit: bool = Field(

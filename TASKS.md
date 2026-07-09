@@ -219,7 +219,7 @@ Each user-story phase is ordered **Tests FIRST (must FAIL) â†’ Implementation â†
 - [ ] T095 [P] [POL] Produce AMD-compute proof artifact (device logs + `rocm-smi` capture) for judging.
 - [ ] T096 [P] [POL] Golden-clip regression tests on v1/v2/v3 to catch tone/fidelity drift.
 - [ ] T097 [P] [POL] Fill `docs/06-judging-criteria` submission checklist; cross-check against [docs/06-judging-criteria.md](docs/06-judging-criteria.md).
-- [ ] T098 [P] [POL] Ruff clean pass (100 col) + type/docstring sweep across `app/`.
+- [x] T098 [P] [POL] Ruff clean pass (100 col) + type/docstring sweep across `app/`.
 - [ ] T099 [POL] Build, tag, and push the `linux/amd64` image; verify pulled image runs the sample batch.
 - [ ] T100 [POL] Local smoke test from a clean checkout following [services/captioner/README.md](services/captioner/README.md); fix any drift.
 - [ ] T101 [P] [POL] Update `STATUS.md`/`AGENTS.md`, tag a release, and note any change to the project non-negotiables in [PLAN.md](PLAN.md).

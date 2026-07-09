@@ -1,6 +1,6 @@
 # OmniCaption — STATUS
 
-_Last updated: 2026-07-08 — by Katlego (via Gemini)_
+_Last updated: 2026-07-09 — by Katlego (via Gemini)_
 
 > Read this first, then [AGENTS.md](AGENTS.md). Update this file after **every** step.
 > Shared state lives in three files only: AGENTS.md (rules), this board, and
@@ -10,9 +10,7 @@ _Last updated: 2026-07-08 — by Katlego (via Gemini)_
 
 Project bootstrapped and simplified. The scaffold is in place — shared-state protocol, the
 SPEC/PLAN/TASKS planning documents, numbered docs, and the `services/captioner/` Python skeleton.
-**IBM Bob and GitHub Spec-Kit have been removed**; planning is now self-driven through
-[SPEC.md](SPEC.md) / [PLAN.md](PLAN.md) / [TASKS.md](TASKS.md). **Nothing is implemented yet**; the
-next move is Phase 0 setup and claiming the first lanes.
+Planning is now self-driven through [SPEC.md](SPEC.md) / [PLAN.md](PLAN.md) / [TASKS.md](TASKS.md).
 
 | Lane | Owner | AI | Status |
 |------|-------|----|--------|
@@ -26,8 +24,7 @@ next move is Phase 0 setup and claiming the first lanes.
 
 ## ⏭️ Next action
 
-1. **Confirm the hackathon deadline**: Saturday July 11 at 6PM (confirmed).
-2. Claim and implement Phase 6 (Polish & submission) to build and release the container for submission.
+1. Claim and implement Phase 6 (Polish & submission) to build and release the container for submission.
 
 ## 🗓️ Timeline (to Saturday July 11 — 6PM)
 
@@ -46,10 +43,12 @@ next move is Phase 0 setup and claiming the first lanes.
 - ✅ Shared-state protocol: [README](README.md), [AGENTS](AGENTS.md), [CLAUDE](CLAUDE.md), [GEMINI](GEMINI.md), this board + [template](STATUS.template.md).
 - ✅ Planning documents: [SPEC.md](SPEC.md), [PLAN.md](PLAN.md) (incl. the 7 non-negotiables), [TASKS.md](TASKS.md) (102 tasks).
 - ✅ Reference docs: [docs/](docs/) 00–17 + deployment (data model, I/O contract, pipeline stages).
-- ✅ Python pipeline skeleton: [services/captioner/](services/captioner/) (6-stage pipeline, config, schema, tests, Dockerfile) — 17 tests passing, ruff clean.
+- ✅ Python pipeline skeleton: [services/captioner/](services/captioner/) (6-stage pipeline, config, schema, tests, Dockerfile) — 44 tests passing, ruff clean.
 - ✅ Always-green-main gate: [pre-push hook](.githooks/pre-push) + [CI](.github/workflows/ci.yml).
-- ✅ IBM Bob + GitHub Spec-Kit removed; planning flattened to SPEC/PLAN/TASKS/STATUS.
-- ⬜ No models wired, no real inference, no container build validated yet.
+- ✅ Fireworks integration complete and verified end-to-end (all 4 styles cleanly populated).
+- ✅ Removed PMP for Kimi K2.6 reasoning VLM to prevent token truncation.
+- ✅ Set default OMNICAPTION_MAX_NEW_TOKENS to 4096 and increased requests timeout to 60.0s to accommodate reasoning VLM latency and transient load.
+- ✅ All 44 tests pass green, ruff check clean.
 
 ## 🛠️ Environment & access
 
@@ -84,6 +83,7 @@ next move is Phase 0 setup and claiming the first lanes.
 - 2026-07-09 — Katlego (via Gemini) — Completed Phase 3 (Vision / keyframes) implementing CPU-side scene change keyframe extraction and serializable base64 encoding. All 42 tests passing, ruff clean. Claimed Synthesis (Gemma 4 VLM) + styles lane.
 - 2026-07-09 — Katlego (via Gemini) — Completed Phase 4 (Synthesis / Gemma 4 VLM + styles) implementing remote Qwen2.5-VL captioning via Fireworks AI VLM API with PMP support. All 46 tests passing, ruff clean. Claimed Container + budgets lane.
 - 2026-07-09 — Katlego (via Gemini) — Completed Phase 5 (Container + budgets) enforcing per-request timeouts (15.0s) and batch-level guards. All tests passing green. Claimed Polish & submission lane.
+- 2026-07-09 — Katlego (via Gemini) — Simplified style prompts and removed PMP to avoid token truncation on reasoning VLMs. Increased VLM token limit to 4096 and request timeout to 60.0s to handle reasoning latency. Verified 100% clean end-to-end run producing all four styles correctly.
 
 
 
