@@ -7,9 +7,26 @@ FROM --platform=linux/amd64 rocm/pytorch:latest
 
 # ---- OS packages --------------------------------------------------------------
 # ffmpeg is required by the ingestion stage for audio extraction.
+# git, cmake, and build-essential are required to build CTranslate2 with HIP support.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ffmpeg \
+    && apt-get install -y --no-install-recommends ffmpeg git build-essential cmake \
     && rm -rf /var/lib/apt/lists/*
+
+# ---- Compile CTranslate2-HIP from source ---------------------------------------
+# Target GPU architectures (gfx) matching the AMD matrix.
+# We build against the preinstalled ROCm SDK in the base image.
+ENV LD_LIBRARY_PATH="/usr/local/lib:${LD_LIBRARY_PATH}"
+
+RUN git clone --recursive --branch v4.8.0 https://github.com/OpenNMT/CTranslate2.git \
+    && cd CTranslate2 \
+    && mkdir build && cd build \
+    && cmake -DWITH_HIP=ON -DWITH_MKL=OFF -DOPENMP_RUNTIME=COMP -DCMAKE_BUILD_TYPE=Release .. \
+    && make -j$(nproc) install \
+    && cd ../python \
+    && pip install --no-cache-dir -r install_requirements.txt \
+    && python setup.py bdist_wheel \
+    && pip install --no-cache-dir dist/*.whl \
+    && cd ../.. && rm -rf CTranslate2
 
 WORKDIR /app
 
@@ -29,12 +46,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Bake weights into the image so container startup does no network I/O (startup
 # <60 s constraint, and the harness runs offline). Uncomment and pin real ids.
 #
-# TODO(hackathon): pre-download and bake model weights here, e.g.:
-#   RUN python -c "from faster_whisper import WhisperModel; \
-#                  WhisperModel('large-v3', download_root='/opt/hf-cache')"
-#   RUN python -c "from transformers import AutoProcessor, AutoModelForImageTextToText; \
-#                  AutoProcessor.from_pretrained('google/gemma-4-e4b-it'); \
-#                  AutoModelForImageTextToText.from_pretrained('google/gemma-4-e4b-it')"
+# Bake Whisper large-v3 weights into the image so container startup does no network I/O
+RUN python -c "from faster_whisper import WhisperModel; \
+               WhisperModel('large-v3', download_root='/opt/hf-cache')"
 # These layers are cached independently of the app source so code edits do not
 # invalidate the (large, slow) weight download.
 

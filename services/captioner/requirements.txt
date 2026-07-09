@@ -5,18 +5,13 @@
 faster-whisper>=1.0,<2.0
 # CTranslate2 with ROCm/HIP support is supplied by the ROCm base image; the PyPI
 # wheel is a CPU/CUDA fallback for local development only.
-ctranslate2>=4.0,<5.0
+# ctranslate2>=4.0,<5.0
 
-# --- Synthesis: Gemma 4 E4B-it VLM via HF Transformers ---
-# torch: install the ROCm build from the AMD index inside the Docker image, e.g.
-#   pip install torch --index-url https://download.pytorch.org/whl/rocm6.2
-# The unpinned entry here is a CPU fallback for `import`-level local testing.
-torch>=2.3
-transformers>=4.44,<5.0
-accelerate>=0.33
-# 4-bit quantization. bitsandbytes ROCm support is experimental; the loader
-# degrades gracefully to fp16/bf16 if the quant backend is unavailable.
-bitsandbytes>=0.43 ; platform_machine == "x86_64"
+# --- Synthesis: Remote Fireworks VLM API is used; local HF stack is omitted to save size ---
+# torch>=2.3
+# transformers>=4.44,<5.0
+# accelerate>=0.33
+# bitsandbytes>=0.43 ; platform_machine == "x86_64"
 
 # --- Vision: keyframe extraction ---
 opencv-python-headless>=4.9

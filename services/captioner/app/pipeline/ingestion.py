@@ -53,6 +53,10 @@ def download_video(
     suffix = Path(urlparse(url).path).suffix or ".mp4"
     out_path = dest_dir / f"{task_id}_{_safe_stem(url, task_id)}{suffix}"
 
+    if out_path.exists() and out_path.stat().st_size > 0:
+        logger.info("Video already cached at %s, skipping download.", out_path)
+        return out_path
+
     logger.info("Downloading %s -> %s", url, out_path)
     try:
         with requests.get(url, stream=True, timeout=timeout_s) as resp:

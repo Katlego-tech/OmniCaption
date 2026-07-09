@@ -24,7 +24,7 @@ Planning is now self-driven through [SPEC.md](SPEC.md) / [PLAN.md](PLAN.md) / [T
 | Polish: submission checklist + smoke/doc drift (T097, T100) | Tumo | Claude | 🔄 PR open |
 | Polish: golden-clip regression tests (T096) | Tumo | Claude | 🔄 PR open |
 | Polish: planning-doc reconciliation (T101 part 1) | Tumo | Claude | 🔄 PR open |
-| Polish: AMD proof + image push (T095, T099) | Katlego | Gemini | ⬜ open |
+| Polish: AMD proof + image push (T095, T099) | Katlego | Gemini | ⏳ in progress |
 
 ## ⏭️ Next action
 

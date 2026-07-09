@@ -38,18 +38,20 @@ def load_whisper(cfg: Settings) -> WhisperModel:
     ct2_device = "cuda" if device == "cuda" else "cpu"
     compute_type = cfg.whisper_compute_type if ct2_device == "cuda" else "int8"
 
+    import os
+
     logger.info(
         "Loading Whisper '%s' on %s (compute=%s)",
         cfg.whisper_model_size,
         ct2_device,
         compute_type,
     )
-    # TODO(hackathon): point download_root at the baked-in model cache to keep
-    # cold start under the 60s budget (see Dockerfile model-cache layer).
+    download_root = os.getenv("HF_HOME")
     return WhisperModel(
         cfg.whisper_model_size,
         device=ct2_device,
         compute_type=compute_type,
+        download_root=download_root,
     )
 
 
