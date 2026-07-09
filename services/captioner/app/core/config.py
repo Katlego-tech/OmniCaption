@@ -57,11 +57,6 @@ class Settings(BaseSettings):
         default="float16",
         description="CTranslate2 compute type (float16, int8_float16, int8).",
     )
-    gemma_model_id: str = Field(
-        default="google/gemma-4-e4b-it",
-        description="HF Transformers repo id for the Gemma 4 E4B-it VLM.",
-    )
-
     # --- Fireworks AI API config ---
     fireworks_api_key: str | None = Field(
         default_factory=lambda: os.getenv("FIREWORKS_API_KEY"),
@@ -95,10 +90,6 @@ class Settings(BaseSettings):
         default=4096,
         description="Maximum tokens generated per caption (reasoning VLMs spend "
         "tokens on thinking before the tagged caption).",
-    )
-    load_in_4bit: bool = Field(
-        default=True,
-        description="Load the Gemma VLM with 4-bit quantization (bitsandbytes).",
     )
     # Fusion weights for the hybrid audio/vision evidence blend used in prompting.
     alpha: float = Field(default=0.6, description="Weight for transcript (audio) evidence.")

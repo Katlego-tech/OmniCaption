@@ -101,7 +101,7 @@ services/captioner/
 │   │   ├── styles.py           # the 4 style system prompts
 │   │   └── pmp.py              # PMP chain (retired from runtime; kept as documented fallback)
 │   └── models/
-│       └── loader.py           # load_whisper (CT2 device placement) + legacy local-VLM loader
+│       └── loader.py           # load_whisper (CT2 device placement; VLM is remote, no loader)
 └── tests/
     ├── unit/                   # test_schema, test_vision, test_styles (models mocked)
     ├── integration/            # test_pipeline_smoke (full run, mocked models)
