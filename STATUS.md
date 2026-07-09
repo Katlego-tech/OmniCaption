@@ -1,6 +1,6 @@
 # OmniCaption — STATUS
 
-_Last updated: 2026-07-09 — by Tumo (via Claude)_
+_Last updated: 2026-07-09 — by Katlego (via Gemini)_
 
 > Read this first, then [AGENTS.md](AGENTS.md). Update this file after **every** step.
 > Shared state lives in three files only: AGENTS.md (rules), this board, and
@@ -126,6 +126,7 @@ Planning is now self-driven through [SPEC.md](SPEC.md) / [PLAN.md](PLAN.md) / [T
 - 2026-07-09 — Tumo (via Claude) — CI: removed the `branches: [main]` filter on `pull_request`
   so stacked PRs (feature → feature) run the gate before merge. Verified locally that the full
   CI recipe passes on the stack, including `ruff format --check` (46 files clean).
+- 2026-07-09 — Katlego (via Gemini) — T095, T099: Removed stock ctranslate2 from requirements.txt to avoid conflict; updated Dockerfile to compile CTranslate2-HIP from source with native compilation flags. Created draft docs/submission-amd-proof.md for judging. Committed and pushed to feat/polish-amd-container-v2.
 
 
 
