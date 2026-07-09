@@ -19,10 +19,12 @@ def stage_timer(stage_name: str, timings: dict[str, float]) -> Generator[None, N
         stage_name: Name of the stage (e.g. 'ingestion').
         timings: Dictionary where timings are recorded.
     """
-    start_time = time.monotonic()
+    # perf_counter, not monotonic: Windows monotonic has ~15.6 ms resolution,
+    # which rounds sub-tick stages down to 0.0.
+    start_time = time.perf_counter()
     try:
         yield
     finally:
-        elapsed = time.monotonic() - start_time
+        elapsed = time.perf_counter() - start_time
         timings[stage_name] = elapsed
         logger.info("Stage '%s' completed in %.2fs", stage_name, elapsed)
