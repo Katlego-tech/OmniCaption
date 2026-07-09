@@ -108,6 +108,26 @@ def extract_audio(video: Path, dest_dir: Path | None = None) -> Path:
         logger.error("ffmpeg command not found on PATH: %s", exc)
         raise AudioExtractionError("ffmpeg is not installed or not on PATH.") from exc
     except subprocess.CalledProcessError as exc:
+        if "does not contain any stream" in exc.stderr:
+            logger.warning("Video has no audio stream. Generating 1-second silent wav.")
+            silent_cmd = [
+                "ffmpeg",
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+                "anullsrc=r=16000:cl=mono",
+                "-t",
+                "1",
+                "-acodec",
+                "pcm_s16le",
+                str(wav_path),
+            ]
+            try:
+                subprocess.run(silent_cmd, check=True, capture_output=True, text=True)
+                return wav_path
+            except Exception as silent_exc:
+                logger.error("Failed to generate silent wav: %s", silent_exc)
         logger.error("ffmpeg failed with exit code %d: %s", exc.returncode, exc.stderr)
         raise AudioExtractionError(f"ffmpeg failed: {exc.stderr.strip()}") from exc
     return wav_path
