@@ -11,7 +11,6 @@ from app.pipeline.audio import WhisperTranscriber
 
 
 class MockWord:
-
     def __init__(self, start: float, end: float, word: str, probability: float = 1.0) -> None:
         self.start = start
         self.end = end
@@ -20,7 +19,6 @@ class MockWord:
 
 
 class MockSegment:
-
     def __init__(self, start: float, end: float, text: str, words: list[MockWord]) -> None:
         self.start = start
         self.end = end
@@ -34,7 +32,6 @@ class MockInfo:
 
 
 class MockModel:
-
     def transcribe(self, wav_path: str, **kwargs) -> tuple[list[MockSegment], MockInfo]:
         words = [
             MockWord(0.0, 0.9, "hello"),
@@ -65,8 +62,8 @@ def test_transcribe_success(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> 
 
 def test_transcribe_empty_or_no_speech(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """If the model returns no segments, an empty Transcript is returned."""
-    class MockEmptyModel:
 
+    class MockEmptyModel:
         def transcribe(self, wav_path: str, **kwargs) -> tuple[list, MockInfo]:
             return [], MockInfo()
 

@@ -97,6 +97,7 @@ def test_one_bad_task_does_not_abort_batch(
     settings: Settings,
 ) -> None:
     """If one task fails during download, other tasks in the batch still run."""
+
     # Task 1 fails ingestion, Task 2 succeeds
     def mock_download_video(url, dest_dir, timeout_s, task_id):
         if task_id == "failed_task":

@@ -53,6 +53,7 @@ class Task(BaseModel):
     def _parse_and_dedupe_styles(cls, value: Any) -> Any:
         """Filter out unknown styles with a warning, and deduplicate them."""
         from app.core.logging import get_logger
+
         logger = get_logger("app.core.schema")
 
         if isinstance(value, list):
@@ -144,4 +145,3 @@ def load_tasks(path: Path | str) -> list[Task]:
     with path.open("r", encoding="utf-8") as f:
         data = json.load(f)
     return TaskInput.model_validate(data).root
-

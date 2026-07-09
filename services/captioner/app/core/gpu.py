@@ -169,4 +169,3 @@ def assert_amd(enforced: bool = False) -> None:
         raise RuntimeError(
             "AMD GPU / ROCm compute is enforced, but no active HIP/CUDA device is visible!"
         )
-

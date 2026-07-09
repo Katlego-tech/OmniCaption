@@ -116,6 +116,7 @@ def test_encode_image_to_base64() -> None:
     import base64
 
     import cv2
+
     image = np.zeros((10, 10, 3), dtype=np.uint8)
     b64_str = vision.encode_image_to_base64(image)
     assert isinstance(b64_str, str)

@@ -46,9 +46,7 @@ def test_modality_order_and_pmp(settings_with_key: Settings) -> None:
     assert "Transcript:\nTest transcript" in user_content[1]["text"]
 
     # Test sarcastic style (no PMP in system message)
-    messages_sarcastic = synth._build_messages(
-        keyframes, "Test transcript", Style.SARCASTIC
-    )
+    messages_sarcastic = synth._build_messages(keyframes, "Test transcript", Style.SARCASTIC)
     assert len(messages_sarcastic) == 2
     assert messages_sarcastic[0]["role"] == "system"
     assert messages_sarcastic[1]["role"] == "user"

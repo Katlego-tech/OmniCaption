@@ -158,15 +158,14 @@ class CaptionSynthesizer:
 
             # Extract content from <captionStyle>...</captionStyle> tags
             import re
+
             match = re.search(r"<captionStyle>(.*?)</captionStyle>", caption, re.DOTALL)
             if match:
                 return match.group(1).strip()
             # Fallback if tags not found (e.g. if model outputted directly)
             return caption.strip()
         except Exception as exc:
-            raise SynthesisError(
-                f"Failed to parse Fireworks Vision API response: {exc}"
-            ) from exc
+            raise SynthesisError(f"Failed to parse Fireworks Vision API response: {exc}") from exc
 
     def generate_for_styles(
         self,
