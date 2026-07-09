@@ -38,6 +38,16 @@ def load_whisper(cfg: Settings) -> WhisperModel:
     ct2_device = "cuda" if device == "cuda" else "cpu"
     compute_type = cfg.whisper_compute_type if ct2_device == "cuda" else "int8"
 
+    import ctranslate2
+    supported_types = ctranslate2.get_supported_compute_types(ct2_device)
+    if compute_type not in supported_types:
+        logger.warning(
+            "Compute type '%s' is not supported on %s by ctranslate2; falling back.",
+            compute_type,
+            ct2_device,
+        )
+        compute_type = "float32" if "float32" in supported_types else list(supported_types)[0]
+
     import os
 
     logger.info(
