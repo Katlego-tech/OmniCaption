@@ -28,9 +28,10 @@ Planning is now self-driven through [SPEC.md](SPEC.md) / [PLAN.md](PLAN.md) / [T
 
 ## ⏭️ Next action
 
-1. **Katlego:** T099 — build/tag/push the `linux/amd64` image. ⚠️ Before building: bake Whisper
-   weights into the image (the Dockerfile sets `HF_HUB_OFFLINE=1` but the model-cache layer is
-   still a TODO — startup would fail or blow the 60 s budget) and pass `FIREWORKS_API_KEY` at run.
+1. **Katlego:** T099 — build/tag/push the `linux/amd64` image. Dockerfile prep is done in Tumo's
+   PR stack (Whisper weights baked before `HF_HUB_OFFLINE=1`, dead local-VLM deps pruned) —
+   remaining: build, **measure the ≤10 GB gate** (⚠️ `rocm/pytorch:latest` alone may exceed it —
+   may need a slimmer ROCm base), push, and pass `FIREWORKS_API_KEY` at run.
 2. **Katlego:** T095 — AMD-compute proof: ROCm/HIP device logs (local Whisper) + Fireworks
    request evidence (MI300X backend).
 3. T096 golden-clip regression, then T101/T102 final sweep.
@@ -126,6 +127,16 @@ Planning is now self-driven through [SPEC.md](SPEC.md) / [PLAN.md](PLAN.md) / [T
 - 2026-07-09 — Tumo (via Claude) — CI: removed the `branches: [main]` filter on `pull_request`
   so stacked PRs (feature → feature) run the gate before merge. Verified locally that the full
   CI recipe passes on the stack, including `ruff format --check` (46 files clean).
+- 2026-07-09 — Tumo (via Claude) — T099-prep (Dockerfile only; build/push stays with Katlego):
+  bake Whisper weights (`Systran/faster-whisper-large-v3` → `HF_HOME`) **before** flipping
+  `HF_HUB_OFFLINE=1` — previously startup would fail offline with no cached weights. Pruned the
+  dead local-VLM path (legacy `load_gemma_vlm`, `transformers`/`accelerate`/`bitsandbytes`/
+  `pillow` deps, `gemma_model_id`/`load_in_4bit` settings) to shrink the image toward the
+  ≤10 GB gate. Fixed root `.env.example` (wrong `*_PATH` var names Settings never read) and
+  documented the Whisper knobs. Also fixed a Windows timer-resolution bug in
+  `core/timing.py` (monotonic → perf_counter; sub-16 ms stages recorded 0.0). 49 tests green.
+  ⚠️ Open risk for T099: `rocm/pytorch:latest` base may alone exceed 10 GB — needs a measured
+  build and possibly a slimmer ROCm base image.
 
 
 
