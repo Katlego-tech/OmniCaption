@@ -152,6 +152,15 @@ def encode_image_to_base64(image: np.ndarray, format_ext: str = ".jpg") -> str:
 
     import cv2
 
+    # Downsample image to a maximum dimension of 1024px to prevent VLM server issues
+    max_dim = 1024
+    h, w = image.shape[:2]
+    if max(h, w) > max_dim:
+        scale = max_dim / max(h, w)
+        new_w = int(w * scale)
+        new_h = int(h * scale)
+        image = cv2.resize(image, (new_w, new_h), interpolation=cv2.INTER_AREA)
+
     ok, buffer = cv2.imencode(format_ext, image)
     if not ok:
         raise ValueError("Failed to encode image to base64.")
