@@ -36,10 +36,17 @@ def test_build_defaults_to_in_memory(tmp_path) -> None:
 
 
 def test_build_falls_back_when_redis_unavailable(tmp_path) -> None:
-    # A REDIS_URL is set but the redis package/connection is unavailable in CI,
-    # so the factory degrades to in-memory rather than crashing at startup.
+    # A REDIS_URL is set but Redis cannot be used, so the factory degrades to
+    # in-memory rather than crashing at startup. Point at a port nothing listens
+    # on with a tiny connect timeout so the factory's client.ping() fails fast --
+    # deterministic whether or not the `redis` package is installed and whether or
+    # not a stray Redis happens to be running on the default 6379 in the dev env.
     limiter = build_rate_limiter(
-        Settings(data_dir=tmp_path, redis_url="redis://localhost:6379/0", _env_file=None)
+        Settings(
+            data_dir=tmp_path,
+            redis_url="redis://127.0.0.1:6390/0?socket_connect_timeout=0.05",
+            _env_file=None,
+        )
     )
     assert isinstance(limiter, InMemoryRateLimiter)
 
