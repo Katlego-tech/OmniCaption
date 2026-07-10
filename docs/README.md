@@ -27,6 +27,8 @@ captioning pipeline that reads `/input/tasks.json`, generates styled captions pe
 | [15-data-model](15-data-model.md) | Entities, fields, validation, and the exact JSON shapes |
 | [16-io-contract](16-io-contract.md) | Authoritative `/input` & `/output` JSON schemas |
 | [17-pipeline-stages](17-pipeline-stages.md) | The 6-stage interface contract + VRAM handoff + fallbacks |
+| [18-frontend-architecture](18-frontend-architecture.md) | Technical specs and design systems for Next.js web application |
+| [19-notebook-environment](19-notebook-environment.md) | Notebook implementation and testing plan for ROCm 7.2 + vLLM |
 | [deployment](deployment.md) | Build/tag/push linux/amd64 image + local smoke test |
 
 The top-level planning documents — [SPEC.md](../SPEC.md), [PLAN.md](../PLAN.md), [TASKS.md](../TASKS.md) —
