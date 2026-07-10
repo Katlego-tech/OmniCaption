@@ -1,6 +1,6 @@
 # OmniCaption — STATUS
 
-_Last updated: 2026-07-10 — by Katlego (via Gemini)_
+_Last updated: 2026-07-10 — by Katlego (via Claude)_
 
 > Read this first, then [AGENTS.md](AGENTS.md). Update this file after **every** step.
 > Shared state lives in three files only: AGENTS.md (rules), this board, and
@@ -25,10 +25,14 @@ Planning is now self-driven through [SPEC.md](SPEC.md) / [PLAN.md](PLAN.md) / [T
 | Polish: golden-clip regression tests (T096) | Tumo | Claude | 🔄 PR open |
 | Polish: planning-doc reconciliation (T101 part 1) | Tumo | Claude | 🔄 PR open |
 | Polish: AMD proof + image push (T095, T099) | Katlego | Gemini | ✅ completed |
+| Web frontend architecture (Track 3 stretch) | Katlego | Claude | 🔄 plan drafted |
+| Web frontend backend API (`services/api/`) | Tumo | Claude | ⏳ handover pending |
 
 ## ⏭️ Next action
 
-1. **Katlego & Tumo:** T101, T102 — Final release sweep: merge branch to main, tag release, and verify CI green.
+1. **Tumo:** Review `docs/18-frontend-architecture.md` on `feat/web-frontend` branch. Scaffold `services/api/` FastAPI backend with the defined API contract.
+2. **Katlego:** Once Tumo's backend lands, generate frontend pages via local Ollama (qwen3:14b) and wire up VengeanceUI components.
+3. **Katlego & Tumo:** T101, T102 — Final release sweep: merge branch to main, tag release, and verify CI green.
 
 ## 🗓️ Timeline (to Saturday July 11 — 6PM)
 
@@ -134,3 +138,5 @@ Planning is now self-driven through [SPEC.md](SPEC.md) / [PLAN.md](PLAN.md) / [T
   build and possibly a slimmer ROCm base image.
 - 2026-07-10 — Katlego (via Gemini) — T099: Fixed container build (specified ROCm clang/clang++ compilers, installed libomp-dev, dynamically symlinked libomp.so to /usr/local/lib, and resolved build OOM by swapping to memory-efficient snapshot_download for model caching). Successfully built omnicaption-captioner:latest (13.5 GB) and verified CTranslate2 loads correctly on GPU inside the container. Committed and pushed to feat/polish-amd-container-v2.
 - 2026-07-10 — Katlego (via Gemini) — T095, T099: Successfully merged Tumo's latest PR branch containing Whisper cache prep, environment config fixes, and timing improvements. Resolved conflicts in STATUS.md, Dockerfile, requirements.txt, and loader.py. Discovered and fixed a CPU fallback issue in load_whisper where MKL-less compilation lacked an x86 int8 SGEMM backend (implemented dynamic compute fallback using ctranslate2.get_supported_compute_types). Confirmed container local CPU smoke test runs successfully and writes schema-valid output on partial fallback. Marked T095/T099 complete.
+- 2026-07-10 — Katlego (via Claude) — T096 image gate: Squashed Docker image with ROCm pruning (static archives, LLVM, hipblaslt, rocfft, migraphx, librocalution_hip, librpp). Final size 9.58 GB (under 10 GB gate). Verified all core imports pass (torch, ctranslate2, faster_whisper, cv2). Pushed to feat/polish-amd-container-v2.
+- 2026-07-10 — Katlego (via Claude) — Web frontend architecture: Designed full frontend plan using Next.js 15, shadcn/ui + VengeanceUI animated components, Tailwind CSS. 7 pages (Landing, Dashboard, Captioner Hub, Search, Oracle Chat, Accounts/API Keys, Docs). Decoupled deployment: static Next.js export + standalone FastAPI backend. API key management via localStorage. Plan committed to `docs/18-frontend-architecture.md` on `feat/web-frontend` branch. Handover to Tumo for backend API scaffolding.
