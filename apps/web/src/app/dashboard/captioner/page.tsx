@@ -7,6 +7,7 @@ import { Icon } from "@/components/icon";
 import { Badge, Button, Card, Input, KineticLoader } from "@/components/ui";
 import { useResults, useRunStatus, useTasks } from "@/hooks/use-api";
 import { api, ApiError } from "@/lib/api";
+import { describeRun } from "@/lib/run-status";
 import { ALL_STYLES, STYLE_LABELS, type Style } from "@/lib/types";
 
 export default function CaptionerPage() {
@@ -30,6 +31,8 @@ export default function CaptionerPage() {
     }
     prevRunState.current = status?.state;
   }, [status?.state, tasks, results]);
+
+  const run_ = describeRun(status, results.data);
 
   const toggleStyle = (style: Style) =>
     setStyles((current) =>
@@ -149,11 +152,10 @@ export default function CaptionerPage() {
           <div className="mb-4 flex items-center justify-between">
             <h2 className="font-medium">Pipeline</h2>
             {status?.state === "running" && <KineticLoader label="running…" />}
-            {status?.state === "succeeded" && <Badge tone="ok">last run succeeded</Badge>}
-            {status?.state === "failed" && (
-              <Badge tone="warn">last run failed (exit {status.returncode})</Badge>
+            {status?.state !== "running" && run_.badge && run_.tone && (
+              <Badge tone={run_.tone}>{run_.badge}</Badge>
             )}
-            {(!status || status.state === "idle") && <Badge>idle</Badge>}
+            {status?.state !== "running" && !run_.badge && <Badge>idle</Badge>}
           </div>
           <p className="mb-4 text-sm text-muted">
             {tasks.data?.length ?? 0} task(s) queued. Running the pipeline processes the whole
@@ -164,11 +166,12 @@ export default function CaptionerPage() {
             {status?.state === "running" ? "Run in progress…" : "Run pipeline"}
           </Button>
           {message && <p className="mt-3 text-sm text-warn">{message}</p>}
-          {status?.state === "failed" && status.stderr && (
+          {run_.note && <p className="mt-3 text-sm text-warn">{run_.note}</p>}
+          {run_.showLog && run_.logText && (
             <div className="mt-4 rounded-lg bg-black/30 p-3 border border-warn/20">
               <p className="text-xs font-semibold text-warn mb-1">Diagnostic Log:</p>
               <pre className="max-h-40 overflow-y-auto text-[10px] font-mono text-muted whitespace-pre-wrap">
-                {status.stderr}
+                {run_.logText}
               </pre>
             </div>
           )}

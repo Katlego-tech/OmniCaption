@@ -31,6 +31,7 @@ Planning is now self-driven through [SPEC.md](SPEC.md) / [PLAN.md](PLAN.md) / [T
 | Web frontend pages (`apps/web/`) | Tumo | Claude | ✅ merged (PR #11) |
 | Track 3 Video-Oracle (T086–T094) | Tumo | Claude | ✅ merged (PR #13) |
 | Run diagnostics (stdout/stderr + env forwarding) | Katlego → Tumo | Gemini/Claude | 🔄 PR open |
+| Honest run reporting (empty-caption run ≠ green success) | Tumo | Claude | 🔄 PR open |
 
 ## ⏭️ Next action
 
@@ -288,6 +289,21 @@ Planning is now self-driven through [SPEC.md](SPEC.md) / [PLAN.md](PLAN.md) / [T
   in the auth form. api suite 77 → **87** (venv) / 84 + skip (CI), ruff clean; web lint +
   14-route build green. Live-smoked: revocation 200→logout→401, httpOnly `Set-Cookie`, rate-limit
   429 at the cap.
+- 2026-07-10 — Tumo (via Claude) — **Honest run reporting** (Captioner Hub). A run that exits 0 but
+  produces empty captions was rendering as a green "last run succeeded" with the diagnostic log
+  hidden (the log only showed on non-zero exit). Because `main.run()` always returns 0 (harness
+  scores on output presence) and a stage failing *before* synthesis backfills empty caption strings
+  in `build_result`, this violated "report failures honestly" at the UI layer. Fix (web-only,
+  frontend gate = lint + static-export build, matching the established web lane — no unit runner in
+  `apps/web`): new pure `apps/web/src/lib/run-status.ts` (`describeRun`/`countEmptyCaptions`) folds
+  the exit-code state together with the actual captions; a succeeded-but-empty run now shows a
+  **warn "completed with errors"** badge, an honest note ("exited cleanly but produced N empty
+  captions — a stage failed before synthesis"), and the captured stderr/stdout **Diagnostic Log**
+  (previously shown only on `failed`). Lint clean, 14-route build green. **Diagnosis note:** empty
+  strings (not `[Fallback] …` text) prove synthesis never ran — the underlying failure is a
+  pre-synthesis stage (ingestion/audio/vision), most likely the 4K clip's download hitting the 60 s
+  `download_timeout_s` or keyframe extraction on 4K frames. The real stderr is now visible in the UI
+  on the next run.
 - 2026-07-10 — Tumo (via Claude) — **Multi-instance rate limiting** (last residual; tests-first).
   Refactored `ratelimit.py` into a `RateLimiter` protocol + `InMemoryRateLimiter` (default,
   per-process sliding window) + `RedisRateLimiter` (shared fixed-window via atomic INCR/EXPIRE)
