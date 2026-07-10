@@ -32,6 +32,8 @@ export type RunState = "idle" | "running" | "succeeded" | "failed";
 export interface RunStatus {
   state: RunState;
   returncode: number | null;
+  stdout?: string;
+  stderr?: string;
 }
 
 export interface SearchHit {

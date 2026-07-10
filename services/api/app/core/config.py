@@ -87,10 +87,22 @@ class Settings(BaseSettings):
         """
         if self.captioner_cmd:
             return self.captioner_cmd
+
+        import os
+
+        env_flags: list[str] = []
+        fw_key = os.environ.get("FIREWORKS_API_KEY", "")
+        if fw_key:
+            env_flags += ["-e", f"FIREWORKS_API_KEY={fw_key}"]
+        for key, val in os.environ.items():
+            if key.startswith("OMNICAPTION_") or key.startswith("HF_"):
+                env_flags += ["-e", f"{key}={val}"]
+
         return [
             "docker",
             "run",
             "--rm",
+            *env_flags,
             "-v",
             f"{self.input_dir.resolve()}:/input",
             "-v",

@@ -19,6 +19,8 @@ class PipelineRunner:
         self._lock = threading.Lock()
         self._state: str = "idle"
         self._returncode: int | None = None
+        self._stdout: str = ""
+        self._stderr: str = ""
 
     def start(self, command: list[str] | str) -> bool:
         """Start a run; returns False (without starting) if one is already running.
@@ -33,6 +35,8 @@ class PipelineRunner:
                 return False
             self._state = "running"
             self._returncode = None
+            self._stdout = ""
+            self._stderr = ""
 
         args: list[str] | str = command
         if isinstance(command, str) and os.name != "nt":
@@ -46,13 +50,26 @@ class PipelineRunner:
         try:
             completed = subprocess.run(args, capture_output=True)
             returncode = completed.returncode
+            stdout = completed.stdout.decode("utf-8", errors="replace")[-4000:]
+            stderr = completed.stderr.decode("utf-8", errors="replace")[-4000:]
         except OSError:
             returncode = -1
+            stdout = ""
+            stderr = "OSError: command not found or not executable"
         with self._lock:
             self._returncode = returncode
             self._state = "succeeded" if returncode == 0 else "failed"
+            self._stdout = stdout
+            self._stderr = stderr
 
     def status(self) -> dict[str, str | int | None]:
         """Current run state and, once finished, the pipeline's exit code."""
         with self._lock:
-            return {"state": self._state, "returncode": self._returncode}
+            res: dict[str, str | int | None] = {
+                "state": self._state,
+                "returncode": self._returncode,
+            }
+            if self._state in ("succeeded", "failed"):
+                res["stdout"] = self._stdout
+                res["stderr"] = self._stderr
+            return res

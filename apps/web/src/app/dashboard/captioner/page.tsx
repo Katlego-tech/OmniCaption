@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { CaptionCard } from "@/components/caption-card";
 import { Icon } from "@/components/icon";
@@ -21,6 +21,15 @@ export default function CaptionerPage() {
   const [videoUrl, setVideoUrl] = useState("");
   const [styles, setStyles] = useState<Style[]>([...ALL_STYLES]);
   const [message, setMessage] = useState<string | null>(null);
+
+  const prevRunState = useRef(status?.state);
+  useEffect(() => {
+    if (prevRunState.current === "running" && status?.state !== "running") {
+      tasks.reload();
+      results.reload();
+    }
+    prevRunState.current = status?.state;
+  }, [status?.state, tasks, results]);
 
   const toggleStyle = (style: Style) =>
     setStyles((current) =>
@@ -115,6 +124,14 @@ export default function CaptionerPage() {
             {status?.state === "running" ? "Run in progress…" : "Run pipeline"}
           </Button>
           {message && <p className="mt-3 text-sm text-warn">{message}</p>}
+          {status?.state === "failed" && status.stderr && (
+            <div className="mt-4 rounded-lg bg-black/30 p-3 border border-warn/20">
+              <p className="text-xs font-semibold text-warn mb-1">Diagnostic Log:</p>
+              <pre className="max-h-40 overflow-y-auto text-[10px] font-mono text-muted whitespace-pre-wrap">
+                {status.stderr}
+              </pre>
+            </div>
+          )}
         </Card>
       </div>
 

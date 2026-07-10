@@ -29,7 +29,8 @@ Planning is now self-driven through [SPEC.md](SPEC.md) / [PLAN.md](PLAN.md) / [T
 | Web frontend backend API (`services/api/`) | Tumo | Claude | ✅ merged (PR #9) |
 | Release sweep (T101, T102) | Tumo | Claude | ✅ completed |
 | Web frontend pages (`apps/web/`) | Tumo | Claude | ✅ merged (PR #11) |
-| Track 3 Video-Oracle (T086–T094) | Tumo | Claude | 🔄 PR open |
+| Track 3 Video-Oracle (T086–T094) | Tumo | Claude | ✅ merged (PR #13) |
+| Run diagnostics (stdout/stderr + env forwarding) | Katlego → Tumo | Gemini/Claude | 🔄 PR open |
 
 ## ⏭️ Next action
 
@@ -223,3 +224,11 @@ Planning is now self-driven through [SPEC.md](SPEC.md) / [PLAN.md](PLAN.md) / [T
   200, active/muted tints render, lint + static-export build green. Also live-validated
   Katlego's Fireworks key via `/api/keys/validate` (valid=true; key kept in process env only,
   never committed).
+- 2026-07-10 — Tumo (via Claude) — **Completed Katlego's `fix/synthesis-diagnostics` branch** (he
+  pushed the fix; I added the missing test coverage and landed it, per the "complete his branches"
+  ask). His change: the runner now captures pipeline stdout/stderr (tail 4 KB, thread-safe) and
+  surfaces them on terminal states; `run_command()` forwards `FIREWORKS_API_KEY` + `OMNICAPTION_*`
+  + `HF_*` into the docker container; the Captioner UI shows a diagnostic log on failure and marks
+  empty captions clearly. My additions: `test_config.py` (env forwarding + default docker command)
+  and 3 runner tests (idle omits output, success captures stdout, failure surfaces stderr) — api
+  now 36 green. ruff + format clean, web lint + build green.
