@@ -72,7 +72,7 @@ class FireworksChat:
         base_url: str = DEFAULT_BASE_URL,
         model: str = DEFAULT_CHAT_MODEL,
         timeout: float = 60.0,
-        max_tokens: int = 1024,
+        max_tokens: int = 4096,
     ) -> None:
         self._api_key = api_key
         self._base_url = base_url.rstrip("/")

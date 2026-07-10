@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+
 from pydantic import BaseModel
 
 from oracle.embeddings import ChatClient, Embedder
@@ -11,8 +13,24 @@ SYSTEM_PROMPT = (
     "You answer questions about a set of video clips. You may use ONLY the evidence "
     "moments provided — never invent people, places, dialogue, or events beyond them. "
     "Cite every claim with its moment reference in the form [task_id @ t]. If the "
-    "evidence does not answer the question, say so plainly."
+    "evidence does not answer the question, say so plainly. "
+    "Wrap ONLY your final answer in <answer>...</answer> tags; keep any reasoning, "
+    "notes, or scratch work OUTSIDE the tags."
 )
+
+_ANSWER_TAG_RE = re.compile(r"<answer>(.*?)</answer>", re.DOTALL)
+
+
+def _extract_answer(raw: str) -> str:
+    """Return the tagged final answer, stripping a reasoning model's thinking.
+
+    Kimi-K2P6 emits chain-of-thought before the answer; without extraction that
+    raw thinking (and any truncation of it) would surface as the answer. Prefer
+    the ``<answer>...</answer>`` span; fall back to the whole content if the model
+    answered without tags.
+    """
+    match = _ANSWER_TAG_RE.search(raw)
+    return match.group(1).strip() if match else raw.strip()
 
 
 class Answer(BaseModel):
@@ -51,4 +69,5 @@ def answer(
 
     evidence = "\n".join(_format_moment(hit) for hit in hits)
     user_prompt = f"Evidence moments:\n{evidence}\n\nQuestion: {question}"
-    return Answer(answer=chat.complete(SYSTEM_PROMPT, user_prompt), citations=hits)
+    raw = chat.complete(SYSTEM_PROMPT, user_prompt)
+    return Answer(answer=_extract_answer(raw), citations=hits)
