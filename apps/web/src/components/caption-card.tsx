@@ -14,7 +14,9 @@ export function CaptionCard({ style, text }: { style: Style; text: string }) {
       <div className="mb-2 flex items-center justify-between">
         <Badge tone={STYLE_TONES[style]}>{STYLE_LABELS[style]}</Badge>
       </div>
-      <p className="text-sm leading-relaxed text-foreground/90">{text}</p>
+      <p className={`text-sm leading-relaxed ${text ? "text-foreground/90" : "text-warn italic font-light"}`}>
+        {text || "(empty — pipeline run failed to generate this caption)"}
+      </p>
     </Card>
   );
 }
