@@ -23,16 +23,27 @@ Configuration is environment-driven — see [.env.example](.env.example).
 | Method | Path | Description |
 |--------|------|-------------|
 | `GET` | `/api/health` | Liveness probe |
+| `POST` | `/api/auth/signup` | Create an account → `{email, token}` (409 on duplicate) |
+| `POST` | `/api/auth/login` | Authenticate → `{email, token}` (401 on bad credentials) |
+| `GET` | `/api/auth/me` | Identity for the `Authorization: Bearer <token>` header (401 otherwise) |
 | `GET` | `/api/tasks` | List tasks from `tasks.json` |
 | `POST` | `/api/tasks` | Submit task(s) — validates, dedupes styles, writes `tasks.json` |
+| `DELETE` | `/api/tasks` | Clear the whole manifest (204) |
+| `DELETE` | `/api/tasks/{task_id}` | Remove one queued task (204; 404 if unknown) |
 | `POST` | `/api/tasks/run` | Trigger a pipeline run (202; 409 if one is already running) |
 | `GET` | `/api/tasks/run` | Poll run status (`idle`/`running`/`succeeded`/`failed`) |
 | `GET` | `/api/results` | Read `results.json` (empty list until the pipeline has run) |
 | `GET` | `/api/results/{task_id}` | Captions for one task (404 if unknown) |
+| `DELETE` | `/api/results` | Delete all generated captions (204) |
+| `DELETE` | `/api/results/{task_id}` | Delete one clip's captions (204; 404 if unknown) |
 | `GET` | `/api/media/{filename}` | Serve a file from `<DATA_DIR>/media` (traversal-safe) |
 | `POST` | `/api/keys/validate` | Check a Fireworks API key against the upstream API |
-| `POST` | `/api/search` | **501** — Track 3 Video-Oracle stub (contract pinned) |
-| `POST` | `/api/qa` | **501** — Track 3 Video-Oracle stub (contract pinned) |
+| `POST` | `/api/search` | Semantic moment search (501 until the oracle index is built) |
+| `POST` | `/api/qa` | Grounded RAG QA (501 until the oracle index is built) |
+
+Auth tokens are HMAC-signed (stdlib) and carry an expiry; accounts live in a SQLite file at
+`<DATA_DIR>/auth.db` with PBKDF2-hashed passwords. **Set `AUTH_SECRET` in any real deployment** —
+the default is a well-known dev value.
 
 Task and result bodies mirror the captioner I/O contract
 ([docs/16-io-contract.md](../../docs/16-io-contract.md)): tasks are

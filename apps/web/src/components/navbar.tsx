@@ -14,11 +14,14 @@ export function Navbar() {
           <Link href="/docs" className="transition-colors hover:text-foreground">
             Docs
           </Link>
+          <Link href="/login" className="transition-colors hover:text-foreground">
+            Log in
+          </Link>
           <Link
-            href="/dashboard"
+            href="/signup"
             className="rounded-lg bg-primary px-4 py-2 font-medium text-white transition-colors hover:bg-primary-soft"
           >
-            Dashboard →
+            Sign up →
           </Link>
         </div>
       </nav>

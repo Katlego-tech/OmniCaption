@@ -65,6 +65,46 @@ export default function CaptionerPage() {
     }
   };
 
+  const removeTask = async (id: string) => {
+    setMessage(null);
+    try {
+      await api.deleteTask(id);
+      tasks.reload();
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "Could not delete the task.");
+    }
+  };
+
+  const clearAllTasks = async () => {
+    setMessage(null);
+    try {
+      await api.clearTasks();
+      tasks.reload();
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "Could not clear tasks.");
+    }
+  };
+
+  const removeResult = async (id: string) => {
+    setMessage(null);
+    try {
+      await api.deleteResult(id);
+      results.reload();
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "Could not delete captions.");
+    }
+  };
+
+  const clearAllResults = async () => {
+    setMessage(null);
+    try {
+      await api.clearResults();
+      results.reload();
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "Could not clear captions.");
+    }
+  };
+
   return (
     <div className="mx-auto max-w-5xl">
       <h1 className="mb-8 text-2xl font-semibold tracking-tight">Captioner Hub</h1>
@@ -137,7 +177,12 @@ export default function CaptionerPage() {
 
       {tasks.data && tasks.data.length > 0 && (
         <>
-          <h2 className="mb-4 text-lg font-medium">Queued tasks</h2>
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-lg font-medium">Queued tasks</h2>
+            <Button variant="ghost" className="px-3 py-1.5 text-xs" onClick={clearAllTasks}>
+              Clear all
+            </Button>
+          </div>
           <div className="mb-10 space-y-2">
             {tasks.data.map((task) => (
               <div
@@ -147,18 +192,43 @@ export default function CaptionerPage() {
                 <span className="font-mono text-primary-soft">{task.task_id}</span>
                 <span className="min-w-0 flex-1 truncate text-muted">{task.video_url}</span>
                 <span className="text-xs text-faint">{task.styles.length} styles</span>
+                <button
+                  type="button"
+                  aria-label={`Delete task ${task.task_id}`}
+                  onClick={() => removeTask(task.task_id)}
+                  className="rounded-md p-1 opacity-70 transition-opacity hover:opacity-100"
+                >
+                  <Icon name="trash" size={16} color="ff4d5a" alt="Delete" />
+                </button>
               </div>
             ))}
           </div>
         </>
       )}
 
-      <h2 className="mb-4 text-lg font-medium">Captions</h2>
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="text-lg font-medium">Captions</h2>
+        {results.data && results.data.length > 0 && (
+          <Button variant="ghost" className="px-3 py-1.5 text-xs" onClick={clearAllResults}>
+            Clear all
+          </Button>
+        )}
+      </div>
       {results.data && results.data.length > 0 ? (
         <div className="space-y-8">
           {results.data.map((clip) => (
             <div key={clip.task_id}>
-              <p className="mb-3 font-mono text-sm text-primary-soft">{clip.task_id}</p>
+              <div className="mb-3 flex items-center gap-3">
+                <p className="font-mono text-sm text-primary-soft">{clip.task_id}</p>
+                <button
+                  type="button"
+                  aria-label={`Delete captions for ${clip.task_id}`}
+                  onClick={() => removeResult(clip.task_id)}
+                  className="rounded-md p-1 opacity-70 transition-opacity hover:opacity-100"
+                >
+                  <Icon name="trash" size={15} color="ff4d5a" alt="Delete" />
+                </button>
+              </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 {(Object.entries(clip.captions) as [Style, string][]).map(([style, text]) => (
                   <CaptionCard key={style} style={style} text={text} />

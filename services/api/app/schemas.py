@@ -6,6 +6,7 @@ installed, so it must not import from ``services/captioner``.
 
 from __future__ import annotations
 
+import re
 from enum import StrEnum
 from typing import Any
 
@@ -71,3 +72,28 @@ class QARequest(BaseModel):
     """Body for /api/qa (Track 3 contract, pinned ahead of implementation)."""
 
     question: str = Field(..., min_length=1, description="Question over the indexed corpus.")
+
+
+_EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+class Credentials(BaseModel):
+    """Body for /api/auth/signup and /api/auth/login."""
+
+    email: str = Field(..., description="Account email address.")
+    password: str = Field(..., min_length=8, max_length=200, description="Account password.")
+
+    @field_validator("email")
+    @classmethod
+    def _valid_email(cls, value: str) -> str:
+        value = value.strip().lower()
+        if not _EMAIL_RE.match(value):
+            raise ValueError("invalid email address")
+        return value
+
+
+class AuthResponse(BaseModel):
+    """Response for a successful signup/login."""
+
+    email: str
+    token: str

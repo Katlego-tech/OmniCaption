@@ -55,3 +55,8 @@ export interface QAResponse {
   answer: string;
   citations: SearchHit[];
 }
+
+export interface AuthResponse {
+  email: string;
+  token: string;
+}
