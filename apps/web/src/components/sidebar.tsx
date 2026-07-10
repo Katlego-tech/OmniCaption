@@ -3,16 +3,21 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { Icon, ICONS8_ATTRIBUTION_URL } from "@/components/icon";
 import { cn } from "@/components/ui";
 
 const LINKS = [
-  { href: "/dashboard", label: "Home", icon: "🏠" },
-  { href: "/dashboard/captioner", label: "Captioner", icon: "🎬" },
-  { href: "/dashboard/search", label: "Search", icon: "🔍" },
-  { href: "/dashboard/oracle", label: "Oracle", icon: "💬" },
-  { href: "/dashboard/accounts", label: "Accounts", icon: "⚙️" },
-  { href: "/docs", label: "Docs", icon: "📖" },
+  { href: "/dashboard", label: "Home", icon: "home" },
+  { href: "/dashboard/captioner", label: "Captioner", icon: "clapperboard" },
+  { href: "/dashboard/search", label: "Search", icon: "search" },
+  { href: "/dashboard/oracle", label: "Oracle", icon: "chat" },
+  { href: "/dashboard/accounts", label: "Accounts", icon: "settings" },
+  { href: "/docs", label: "Docs", icon: "book" },
 ];
+
+// Tokens from globals.css, as hex for the Icons8 CDN color segment.
+const ICON_ACTIVE = "ff4d5a";
+const ICON_MUTED = "9b9ba6";
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -36,7 +41,7 @@ export function Sidebar() {
                 : "text-muted hover:bg-card-hover hover:text-foreground",
             )}
           >
-            <span aria-hidden>{link.icon}</span>
+            <Icon name={link.icon} size={18} color={active ? ICON_ACTIVE : ICON_MUTED} />
             {link.label}
           </Link>
         );
@@ -45,6 +50,13 @@ export function Sidebar() {
         AMD Hackathon ACT II
         <br />
         Track 2 · v1.0.0
+        <br />
+        <a
+          href={ICONS8_ATTRIBUTION_URL}
+          className="underline transition-colors hover:text-muted"
+        >
+          Icons by Icons8
+        </a>
       </div>
     </aside>
   );

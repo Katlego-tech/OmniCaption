@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { CaptionCard } from "@/components/caption-card";
+import { Icon } from "@/components/icon";
 import { Badge, Button, Card, Input, KineticLoader } from "@/components/ui";
 import { useResults, useRunStatus, useTasks } from "@/hooks/use-api";
 import { api, ApiError } from "@/lib/api";
@@ -110,7 +111,8 @@ export default function CaptionerPage() {
             manifest: download → Whisper STT → keyframes → VLM synthesis → results.json.
           </p>
           <Button onClick={run} disabled={status?.state === "running"}>
-            {status?.state === "running" ? "Run in progress…" : "▶ Run pipeline"}
+            {status?.state !== "running" && <Icon name="play" size={14} color="ffffff" />}
+            {status?.state === "running" ? "Run in progress…" : "Run pipeline"}
           </Button>
           {message && <p className="mt-3 text-sm text-warn">{message}</p>}
         </Card>

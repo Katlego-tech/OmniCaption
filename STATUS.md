@@ -215,3 +215,11 @@ Planning is now self-driven through [SPEC.md](SPEC.md) / [PLAN.md](PLAN.md) / [T
   a single branch: `main`, green on all four CI lanes, tagged v1.0.0. Remaining before
   submission (non-code): Katlego records the image's public registry URL in docs/06; team
   submits by Saturday 6PM.
+- 2026-07-10 — Tumo (via Claude) — **Team decision (Tumo): all web icons come from Icons8**
+  (https://icons8.com/icons, free tier). Added `components/icon.tsx` (ios-glyphs style via the
+  img.icons8.com CDN), swapped the sidebar emoji + run-button glyph for Icons8 icons, removed
+  the unused create-next-app scaffold SVGs, and added the license-required "Icons by Icons8"
+  attribution links (landing footer + sidebar). Verified live on the dev stack: all 7 icon URLs
+  200, active/muted tints render, lint + static-export build green. Also live-validated
+  Katlego's Fireworks key via `/api/keys/validate` (valid=true; key kept in process env only,
+  never committed).
