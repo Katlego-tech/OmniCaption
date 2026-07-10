@@ -21,6 +21,8 @@ def settings(tmp_path: Path) -> Settings:
         data_dir=tmp_path,
         # A no-op command so /api/tasks/run never touches Docker in tests.
         captioner_cmd=f'"{sys.executable}" -c "print(42)"',
+        # Keep the suite offline — no live DNS resolution during URL validation.
+        ssrf_resolve_dns=False,
         _env_file=None,
     )
 

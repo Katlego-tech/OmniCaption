@@ -25,6 +25,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const token = getToken();
   const resp = await fetch(`${getApiUrl()}${path}`, {
     ...init,
+    // Send the httpOnly session cookie too (used on same-site / HTTPS deploys);
+    // the Bearer header is the cross-origin dev fallback.
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
       ...(fireworksKey ? { "X-Fireworks-Key": fireworksKey } : {}),
@@ -52,7 +55,7 @@ export const api = {
 
   // --- auth ---
   signup: (email: string, password: string) =>
-    request<AuthResponse>("/api/auth/signup", {
+    request<AuthResponse | { status: string; email: string }>("/api/auth/signup", {
       method: "POST",
       body: JSON.stringify({ email, password }),
     }),
@@ -61,6 +64,12 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ email, password }),
     }),
+  verify: (token: string) =>
+    request<AuthResponse>("/api/auth/verify", {
+      method: "POST",
+      body: JSON.stringify({ token }),
+    }),
+  logout: () => request<void>("/api/auth/logout", { method: "POST" }),
   me: () => request<{ email: string }>("/api/auth/me"),
 
   // --- tasks ---

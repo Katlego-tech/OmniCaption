@@ -24,17 +24,25 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
     setError(null);
     setBusy(true);
     try {
-      const call = isSignup ? api.signup : api.login;
-      const res = await call(email.trim(), password);
-      setSession(res.email, res.token);
-      router.push("/dashboard");
+      const res = await (isSignup ? api.signup(email.trim(), password) : api.login(email.trim(), password));
+      if ("token" in res && res.token) {
+        setSession(res.email, res.token);
+        router.push("/dashboard");
+        return;
+      }
+      // Verification-required mode: signup returns 202 with no token.
+      router.push("/verify");
     } catch (err) {
       if (err instanceof ApiError) {
-        setError(
-          err.status === 422
-            ? "Enter a valid email and a password of at least 8 characters."
-            : err.message,
-        );
+        if (err.status === 429) {
+          setError("Too many attempts — please wait a moment and try again.");
+        } else if (err.status === 403) {
+          setError("Your email isn't verified yet. Check your inbox, then log in.");
+        } else if (err.status === 422) {
+          setError("Enter a valid email and a password of at least 8 characters.");
+        } else {
+          setError(err.message);
+        }
       } else {
         setError("Could not reach the backend. Check the API URL on the Accounts page.");
       }

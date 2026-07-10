@@ -141,7 +141,44 @@ class Credentials(BaseModel):
 
 
 class AuthResponse(BaseModel):
-    """Response for a successful signup/login."""
+    """Response for a successful signup/login/verify."""
 
     email: str
     token: str
+
+
+class VerifyRequest(BaseModel):
+    """Body for /api/auth/verify."""
+
+    token: str = Field(..., min_length=1, description="Email-verification token.")
+
+
+def resolve_host_is_internal(host: str) -> bool:
+    """True if ``host`` resolves to any private/loopback/link-local/reserved IP.
+
+    Fail-open (returns False) on resolution errors — an unresolvable host is left
+    for the pipeline's own fetch + egress policy to handle. This narrows, but does
+    not fully close, DNS-rebinding: an address that flips between this check and
+    the later fetch still slips through, so egress filtering remains the backstop.
+    """
+    import socket
+
+    try:
+        infos = socket.getaddrinfo(host, None)
+    except (OSError, UnicodeError):
+        return False
+    for info in infos:
+        try:
+            ip = ipaddress.ip_address(info[4][0])
+        except ValueError:
+            continue
+        if (
+            ip.is_private
+            or ip.is_loopback
+            or ip.is_link_local
+            or ip.is_reserved
+            or ip.is_multicast
+            or ip.is_unspecified
+        ):
+            return True
+    return False

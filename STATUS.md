@@ -269,3 +269,22 @@ Planning is now self-driven through [SPEC.md](SPEC.md) / [PLAN.md](PLAN.md) / [T
   old-default token → 401, valid authed submit → 201. **Residual (documented, not fixed):** no
   rate limiting, signup 409 still enumerates emails, token in localStorage (XSS), no server-side
   token revocation, no email verification, DNS-rebinding bypass of the URL check.
+- 2026-07-10 — Tumo (via Claude) — **Closed the residual security items** (tests-first).
+  (1) **Rate limiting**: in-memory per-IP sliding window on signup/login/verify → 429 (config
+  `RATE_LIMIT_MAX`/`_WINDOW_S`). (2) **Token revocation**: tokens carry a `tv` (token-version)
+  claim checked against the DB; `POST /api/auth/logout` bumps it (logout-everywhere) and clears
+  the cookie. (3) **Email verification** (config `REQUIRE_VERIFICATION`, default off to keep the
+  demo frictionless): `verified` column + token, dev mailer writes the link to
+  `<DATA_DIR>/outbox/`, `POST /api/auth/verify` activates + logs in; login blocks unverified with
+  a 403 that only surfaces after the password matches (not an oracle). (4) **Signup
+  anti-enumeration**: in verification mode signup returns an identical generic 202 whether or not
+  the email exists (no 409 oracle); the login timing channel was already closed. (5) **httpOnly
+  cookie auth**: login/signup/verify set an httpOnly `session` cookie; `require_user` accepts
+  cookie OR Bearer header (frontend sends `credentials:include`) — XSS-safe path for
+  same-site/HTTPS deploys, header remains the cross-origin dev fallback. (6) **DNS-rebinding**:
+  `submit_tasks` resolves the `video_url` host and rejects internal IPs (config
+  `SSRF_RESOLVE_DNS`, off in tests); TOCTOU residual documented — egress filtering is the
+  backstop. New `/verify` web page + logout wired to server-side revocation; 429/403/202 handled
+  in the auth form. api suite 77 → **87** (venv) / 84 + skip (CI), ruff clean; web lint +
+  14-route build green. Live-smoked: revocation 200→logout→401, httpOnly `Set-Cookie`, rate-limit
+  429 at the cap.

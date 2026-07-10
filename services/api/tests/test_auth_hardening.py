@@ -39,8 +39,10 @@ def test_token_forged_with_old_public_default_is_rejected(tmp_path) -> None:
 
 def test_generated_secret_persists_across_restart(tmp_path) -> None:
     settings = Settings(data_dir=tmp_path, auth_secret="", _env_file=None)
-    token = AuthService(settings).issue_token(1, "x@x.com")
-    # A second service over the same data dir must accept the token (same key).
+    svc = AuthService(settings)
+    uid, _ = svc.create_user("x@x.com", "password-123")
+    token = svc.issue_token(uid, "x@x.com")
+    # A second service over the same data dir must accept the token (same key + db).
     assert AuthService(settings).verify_token(token)["email"] == "x@x.com"
 
 

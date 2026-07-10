@@ -7,6 +7,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.auth import AuthService
 from app.core.config import Settings
+from app.core.mailer import DevMailer
+from app.core.ratelimit import RateLimiter
 from app.core.runner import PipelineRunner
 from app.routers import auth, keys, media, qa, results, search, tasks
 
@@ -23,6 +25,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.settings = settings
     app.state.runner = PipelineRunner()
     app.state.auth = AuthService(settings)
+    app.state.limiter = RateLimiter(settings.rate_limit_max, settings.rate_limit_window_s)
+    app.state.mailer = DevMailer(settings.auth_outbox_dir)
 
     app.add_middleware(
         CORSMiddleware,
