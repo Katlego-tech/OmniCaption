@@ -64,6 +64,17 @@ class AuthService:
     def _connect(self) -> sqlite3.Connection:
         return sqlite3.connect(self._db_path)
 
+    # Columns added after the original release, with the DDL to backfill them onto
+    # a pre-existing table. Applied in order so an older auth.db upgrades in place
+    # instead of failing at the first INSERT (CREATE TABLE IF NOT EXISTS never adds
+    # columns to a table that already exists). Defaults keep legacy accounts usable:
+    # they are treated as verified (predating verification) at token version 0.
+    _COLUMN_MIGRATIONS: tuple[tuple[str, str], ...] = (
+        ("verified", "ALTER TABLE users ADD COLUMN verified INTEGER NOT NULL DEFAULT 1"),
+        ("verification_token", "ALTER TABLE users ADD COLUMN verification_token TEXT"),
+        ("token_version", "ALTER TABLE users ADD COLUMN token_version INTEGER NOT NULL DEFAULT 0"),
+    )
+
     def _init_db(self) -> None:
         with self._connect() as conn:
             conn.execute(
@@ -80,6 +91,10 @@ class AuthService:
                 )
                 """
             )
+            existing = {row[1] for row in conn.execute("PRAGMA table_info(users)")}
+            for column, ddl in self._COLUMN_MIGRATIONS:
+                if column not in existing:
+                    conn.execute(ddl)
 
     # --- accounts ----------------------------------------------------------
     def create_user(self, email: str, password: str) -> tuple[int | None, str | None]:

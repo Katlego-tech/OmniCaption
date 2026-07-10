@@ -289,6 +289,18 @@ Planning is now self-driven through [SPEC.md](SPEC.md) / [PLAN.md](PLAN.md) / [T
   in the auth form. api suite 77 → **87** (venv) / 84 + skip (CI), ruff clean; web lint +
   14-route build green. Live-smoked: revocation 200→logout→401, httpOnly `Set-Cookie`, rate-limit
   429 at the cap.
+- 2026-07-10 — Tumo (via Claude) — **Auth DB in-place migration** (tests-first). Signup 500'd
+  (`sqlite3.OperationalError: table users has no column named verified`) against an `auth.db`
+  created by a pre-verification build: `AuthService._init_db` used `CREATE TABLE IF NOT EXISTS`
+  with the full schema, which never adds columns to an already-existing table — so any in-place
+  upgrade broke signup, not just a stale dev DB. Fix: a `_COLUMN_MIGRATIONS` pass after table
+  creation that `ALTER TABLE ADD COLUMN`s any missing `verified`/`verification_token`/
+  `token_version` (defaults keep legacy accounts usable — verified, token-version 0). New
+  `tests/test_auth_migration.py` (3 tests: columns added, legacy rows default verified, signup
+  succeeds against a migrated legacy DB) — red→green. Full auth/hardening/verification/revocation
+  suites 39 green, ruff clean. Live-smoked on the running stack: DB upgraded on restart, signup
+  POST → 201. (Surfaced while bringing up the dev stack for UI testing; also hit a dev-only CORS
+  gap — a fresh web build on a non-3000 port isn't in the API's default allowlist.)
 - 2026-07-10 — Tumo (via Claude) — **Honest run reporting** (Captioner Hub). A run that exits 0 but
   produces empty captions was rendering as a green "last run succeeded" with the diagnostic log
   hidden (the log only showed on non-zero exit). Because `main.run()` always returns 0 (harness
