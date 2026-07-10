@@ -18,9 +18,9 @@ Then claim a lane in STATUS.md before you start editing.
 A Dockerized dual-model hybrid **video captioning** pipeline for the AMD Developer Hackathon
 (ACT II) **Track 2**. It reads `/input/tasks.json` (video URLs + requested styles) and writes four
 stylistic captions per clip to `/output/results.json`, on AMD compute, inside strict time and memory
-budgets. The six stages: **Ingestion → Audio (Whisper) → Memory Reclamation → Vision (keyframes)
-→ Synthesis (Gemma 4 VLM) → Output.** Styles: `formal`, `sarcastic`, `humorous_tech`,
-`humorous_non_tech`.
+budgets. The six stages: **Ingestion → Audio (local Whisper) → Memory Reclamation → Vision
+(keyframes) → Synthesis (Fireworks VLM) → Output.** Styles: `formal`, `sarcastic`,
+`humorous_tech`, `humorous_non_tech`.
 
 The plan lives in [PLAN.md](PLAN.md); the WHAT in [SPEC.md](SPEC.md); the task list in [TASKS.md](TASKS.md).
 
@@ -42,6 +42,8 @@ The plan lives in [PLAN.md](PLAN.md); the WHAT in [SPEC.md](SPEC.md); the task l
 
 ## Locked stack (do not swap without a plan change)
 
-Python 3.11 · Docker (linux/amd64) · faster-whisper on CTranslate2-HIP (ROCm) · ffmpeg ·
-OpenCV keyframe extraction · Gemma 4 E4B-it (4-bit) via HF Transformers · PyTorch (ROCm) ·
-pydantic-settings · pytest + Ruff (100-col). Track 3 stretch: vLLM-ROCm + Gemma 4 31B + CLIP/USM index.
+Python 3.11 · Docker (linux/amd64) · faster-whisper on CTranslate2-HIP (ROCm; int8 CPU for dev) ·
+ffmpeg · OpenCV keyframe extraction · Kimi-K2P6 via Fireworks AI API (AMD MI300X backend) ·
+PyTorch (ROCm, device detection + reclamation) · pydantic-settings · pytest + Ruff (100-col).
+Track 3 stretch: Fireworks AI models + CLIP/USM index. (Changed from local Gemma 4 by the
+2026-07-09 plan change — see PLAN.md and the STATUS.md log.)

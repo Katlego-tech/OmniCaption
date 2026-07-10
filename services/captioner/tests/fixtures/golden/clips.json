@@ -1,0 +1,15 @@
+{
+  "_comment": "Frozen v1/v2/v3 evidence for golden regression tests (T096). These are stable, hand-authored stand-ins for the baseline clips so the tone-bearing surfaces (prompt assembly, fallback text) can be pinned without network or model runs. Do not edit casually: changing evidence invalidates the golden files.",
+  "v1": {
+    "transcript": "A chef slices vegetables on a wooden board while explaining the recipe.",
+    "keyframes": 3
+  },
+  "v2": {
+    "transcript": "",
+    "keyframes": 5
+  },
+  "v3": {
+    "transcript": "The presenter walks through the city square pointing at the old clock tower, then greets a street vendor selling roasted chestnuts near the fountain.",
+    "keyframes": 1
+  }
+}

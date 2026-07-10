@@ -1,8 +1,9 @@
 """Stage 5: synthesis — caption generation with the Fireworks VLM API.
 
-The chat prompt is assembled in a fixed order: **images -> transcript text ->
-style system prompt**. The sarcastic style routes through Pragmatic
-Metacognitive Prompting (PMP). Styles for a single clip are generated in a loop.
+Messages are assembled as a system prompt (style persona + output-tag rules)
+and a user prompt in a fixed order: **images -> transcript text**. The model's
+reasoning is kept outside ``<captionStyle>`` tags and only the tagged caption is
+returned. Styles for a single clip are generated in a loop over shared evidence.
 """
 
 from __future__ import annotations

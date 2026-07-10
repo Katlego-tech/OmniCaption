@@ -104,11 +104,13 @@ Acceptance criteria:
 
 - **AC2.1** Given a WAV file, the pipeline produces a transcript with **segment- and word-level
   timestamps**.
-- **AC2.2** Transcription runs on **AMD compute** (Fireworks AI API hosted on AMD MI300X), verifiable from logs.
+- **AC2.2** Transcription runs on **AMD compute** (local faster-whisper on ROCm/HIP inside the
+  container), verifiable from device logs. The CPU fallback is dev-only and flagged in logs.
 - **AC2.3** Given a clip with no intelligible speech, the pipeline returns an **empty but valid**
   transcript (empty segment list) rather than erroring; downstream stages treat vision as the sole
   evidence source.
-- **AC2.4** After transcription completes, the transcript is captured to CPU memory; since inferences are remote, local VRAM footprint is negligible.
+- **AC2.4** After transcription completes, the transcript is captured to CPU memory and the Whisper
+  model is unloaded with VRAM reclaimed (`del` → `gc.collect()` → empty cache) before synthesis.
 
 ### US3 — Extract keyframes (priority: P1)
 
@@ -147,9 +149,11 @@ score tonal match in addition to fidelity.
 
 Acceptance criteria:
 
-- **AC5.1** For a requested `sarcastic` style, the pipeline runs the **PMP metacognitive chain**
-  (perceive → interpret → invert → phrase) and emits a caption whose literal reading diverges from a
-  straight description while remaining recognizably about the same events.
+- **AC5.1** For a requested `sarcastic` style, the pipeline emits a caption whose literal reading
+  diverges from a straight description while remaining recognizably about the same events. It is
+  generated single-shot from the dry-critic persona prompt — the documented cut-order fallback;
+  the PMP metacognitive chain was retired from the runtime path because reasoning VLMs spent the
+  token budget on the chain and truncated the caption.
 - **AC5.2** For `humorous_tech`, the caption stays grounded but frames events with software /
   engineering metaphors.
 - **AC5.3** For `humorous_non_tech`, the caption stays grounded and is playful without technical
@@ -175,7 +179,8 @@ Acceptance criteria:
   are captured; their styles carry fallback captions).
 - **AC6.4** The whole batch completes in **≤10 minutes**; each request resolves in **<30 seconds**.
 - **AC6.5** Container **startup is <60 seconds**; the built image is **≤10 GB**.
-- **AC6.6** Both model stages run remotely via Fireworks AI API, ensuring no local model co-residency or local VRAM constraints exist.
+- **AC6.6** The local STT model and the remote VLM are never co-resident in local VRAM: Whisper is
+  unloaded and VRAM reclaimed before the synthesis stage issues its first Fireworks request.
 
 ### US7 — Video-Oracle semantic search + QA (priority: P3, stretch — Track 3)
 
@@ -207,14 +212,16 @@ These apply to the whole pipeline regardless of story.
 ### CC2 — Memory
 
 - The built image is **≤10 GB**.
-- STT and VLM are loaded **sequentially**; a dedicated memory-reclamation step (`del` → `gc.collect()`
-  → empty GPU cache) runs between them so the pipeline fits **8 GB-class AMD cards**.
+- Only the STT model loads locally; the VLM is a remote API. A dedicated memory-reclamation step
+  (`del` → `gc.collect()` → empty GPU cache) still runs after transcription so no model weights
+  linger during synthesis and the pipeline fits **8 GB-class AMD cards**.
 
 ### CC3 — AMD compute is mandatory
 
-- Both model stages must **provably execute on AMD ROCm/HIP**. Absence of AMD compute is an automatic
-  disqualification, so the pipeline logs the active device and fails loudly if no AMD device is
-  present in the enforced (non-dev) mode. See principle **V** in [PLAN.md](PLAN.md).
+- Both model stages must **provably execute on AMD compute**: STT on local ROCm/HIP (active device
+  logged, fails loudly if no AMD device is present in the enforced non-dev mode) and VLM synthesis
+  on Fireworks AI's AMD MI300X-powered platform (requests + model ids logged). Absence of AMD
+  compute is an automatic disqualification. See principle **V** in [PLAN.md](PLAN.md).
 
 ### CC4 — Faithfulness & grounding
 
@@ -247,7 +254,7 @@ evaluation set. These are the "definition of done" for the MVP demo.
 
 Demo is accepted when: all three clips run in a single batch, `/output/results.json` validates against
 the output schema, every requested style is present, the run exits `0` within budget, and logs show
-AMD/ROCm execution for both model stages.
+AMD compute for both model stages (ROCm/HIP device for STT, Fireworks MI300X requests for the VLM).
 
 ---
 
