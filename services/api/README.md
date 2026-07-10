@@ -41,9 +41,11 @@ Configuration is environment-driven — see [.env.example](.env.example).
 | `POST` | `/api/search` | Semantic moment search (501 until the oracle index is built) |
 | `POST` | `/api/qa` | Grounded RAG QA (501 until the oracle index is built) |
 
-Auth tokens are HMAC-signed (stdlib) and carry an expiry; accounts live in a SQLite file at
-`<DATA_DIR>/auth.db` with PBKDF2-hashed passwords. **Set `AUTH_SECRET` in any real deployment** —
-the default is a well-known dev value.
+Auth tokens are HMAC-signed (stdlib) and carry an expiry + a revocable version; accounts live in a
+SQLite file at `<DATA_DIR>/auth.db` with PBKDF2-hashed passwords. Leave `AUTH_SECRET` unset to
+auto-generate a persisted random key (single instance), or set it explicitly for multi-instance.
+Auth endpoints are rate-limited per client IP — per-process by default, or shared across instances
+via `REDIS_URL` (needs the optional `redis` package; degrades to in-memory if unreachable).
 
 Task and result bodies mirror the captioner I/O contract
 ([docs/16-io-contract.md](../../docs/16-io-contract.md)): tasks are

@@ -7,3 +7,7 @@ uvicorn[standard]>=0.30
 httpx>=0.27
 pydantic>=2.7
 pydantic-settings>=2.2
+
+# Optional: install `redis` to enable the shared multi-instance rate-limit
+# backend (activated by REDIS_URL). Not required for single-instance runs.
+# redis>=5.0

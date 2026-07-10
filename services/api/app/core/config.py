@@ -58,7 +58,12 @@ class Settings(BaseSettings):
         description="Max auth attempts (signup/login/verify) per window, per client IP.",
     )
     rate_limit_window_s: int = Field(
-        default=60, description="Sliding window for auth rate limiting, in seconds."
+        default=60, description="Window for auth rate limiting, in seconds."
+    )
+    redis_url: str = Field(
+        default="",
+        description="Optional Redis URL for a rate-limit store shared across API instances. "
+        "When empty (or unreachable), rate limiting falls back to per-process in-memory.",
     )
     require_verification: bool = Field(
         default=False,
