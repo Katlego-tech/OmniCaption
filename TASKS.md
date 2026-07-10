@@ -204,7 +204,7 @@ Each user-story phase is ordered **Tests FIRST (must FAIL) → Implementation �
 ### Implementation
 
 - [x] T089 [US7] Scaffold `services/oracle/` separate from the Track 2 image (must not regress its budgets — AC7.4). — pure-Python, 2 runtime deps, no model weights.
-- [x] T090 [P] [US7] Implement CLIP/USM embedding extraction over keyframes + transcript segments. — **text modality shipped** (Fireworks embeddings over captions/transcripts, per the 2026-07-09 Fireworks plan change); CLIP visual embeddings over keyframes remain documented future work.
+- [x] T090 [P] [US7] Implement CLIP/USM embedding extraction over keyframes + transcript segments. — text modality via Fireworks embeddings (2026-07-09 plan change) **plus CLIP visual keyframe embeddings** as an optional-dependency path (`oracle/clip_embed.py`, open_clip ViT-B-32; skipped gracefully when not installed). Captioner emits transcript + keyframe sidecars to feed it.
 - [x] T091 [P] [US7] Build the multimodal vector index + persistence. — `MomentIndex` + JSON persistence.
 - [x] T092 [US7] Implement semantic search (query embedding → top-k moments). — cosine top-k, served at `/api/search`.
 - [x] T093 [US7] Serve Gemma 4 31B via vLLM-ROCm; implement RAG QA over retrieved moments. — **superseded by the 2026-07-09 plan change**: QA runs on Fireworks Kimi-K2P6 (MI300X) with grounded [task_id @ t] citations, served at `/api/qa`.

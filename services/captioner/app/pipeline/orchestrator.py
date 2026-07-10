@@ -65,6 +65,8 @@ class CaptionPipeline:
         self._synth = CaptionSynthesizer(cfg)
         self._run_started: float = 0.0
         self.current_state: CaptionState | None = None
+        # Collected for the transcript sidecar (Track 3 oracle enrichment).
+        self.transcripts: dict[str, Transcript] = {}
 
     def run(self, tasks: list[Task]) -> list[ClipResult]:
         """Run the pipeline over all tasks.
@@ -123,6 +125,7 @@ class CaptionPipeline:
             # Stages 2 + 3: transcription then VRAM reclamation.
             with stage_timer("audio", state.timings):
                 state.transcript = self._transcribe(state.wav_path)
+                self.transcripts[task.task_id] = state.transcript
 
             # Stage 4: vision.
             with stage_timer("vision", state.timings):
@@ -132,6 +135,16 @@ class CaptionPipeline:
                     max_keyframes=self._cfg.max_keyframes,
                 )
                 align_to_transcript(state.keyframes, state.transcript)
+
+            if self._cfg.emit_keyframes and state.keyframes:
+                try:
+                    from app.pipeline.sidecars import write_keyframe_sidecar
+
+                    write_keyframe_sidecar(
+                        task.task_id, state.keyframes, self._cfg.output_dir / "keyframes"
+                    )
+                except Exception as exc:  # noqa: BLE001 - sidecars never fail the task
+                    logger.warning("Keyframe sidecar failed for %s: %s", task.task_id, exc)
 
             # Stage 5: synthesis.
             with stage_timer("synthesis", state.timings):

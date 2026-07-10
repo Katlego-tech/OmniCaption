@@ -27,6 +27,14 @@ class ChatClient(Protocol):
     def complete(self, system: str, user: str) -> str: ...
 
 
+class ClipEncoder(Protocol):
+    """Anything that embeds images and text into one shared visual space."""
+
+    def embed_images(self, paths: list[str]) -> list[list[float]]: ...
+
+    def embed_text(self, text: str) -> list[float]: ...
+
+
 class FireworksEmbeddings:
     """Batch text embeddings via the Fireworks embeddings endpoint."""
 

@@ -196,3 +196,15 @@ Planning is now self-driven through [SPEC.md](SPEC.md) / [PLAN.md](PLAN.md) / [T
   gains an `oracle` lane (4 lanes total). Suites: oracle 9/9 (3 seeds), api 30/30, captioner
   49+1 skip, web lint+build green. **Honest scope note:** CLIP visual keyframe embeddings are
   NOT implemented — the index is text-only (captions + optional transcript sidecars).
+- 2026-07-10 — Tumo (via Claude) — Follow-up leftovers closed (tests-first throughout): (1)
+  captioner now emits **sidecars** for the oracle — `/output/transcripts.json` (timed segments,
+  default on, `OMNICAPTION_EMIT_TRANSCRIPTS=0` to disable) and keyframe JPEGs under
+  `/output/keyframes/` (opt-in via `OMNICAPTION_EMIT_KEYFRAMES=1`); best-effort writers that can
+  never break the results.json contract. (2) Oracle gains the **CLIP visual space**: keyframe
+  moments (`space="clip"`) embedded via optional open_clip ViT-B-32 (`oracle/clip_embed.py`),
+  cross-modal search merges text + clip hits, clip moments skip gracefully when open_clip is
+  absent; CLI grows `--keyframes`; API bridge passes a CLIP encoder when available. Old
+  text-only index files still load (covered by test). (3) CI actions bumped
+  (checkout@v5, setup-python@v6) to clear the Node 20 deprecation warnings. Suites: captioner
+  53/53 (+4), oracle 14/14 (+5), api 30/30, ruff clean. Cross-space score merge is uncalibrated
+  (MVP) — noted in the search docstring.

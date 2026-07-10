@@ -26,6 +26,39 @@ def moments_from_results(path: Path | str) -> list[Moment]:
     return moments
 
 
+def moments_from_keyframes(root: Path | str) -> list[Moment]:
+    """Clip-space moments from a keyframe sidecar tree (``root/<task_id>/*.jpg``).
+
+    Timestamps are parsed from the captioner's sidecar filenames
+    (``kf000_t1.5.jpg`` → 1.5 s) when present.
+    """
+    root = Path(root)
+    moments: list[Moment] = []
+    for image in sorted(root.glob("*/*.jpg")):
+        t_start = _timestamp_from_name(image.stem)
+        moments.append(
+            Moment(
+                task_id=image.parent.name,
+                kind="keyframe",
+                text=f"keyframe {image.stem}",
+                t_start=t_start,
+                space="clip",
+                media=str(image),
+            )
+        )
+    return moments
+
+
+def _timestamp_from_name(stem: str) -> float | None:
+    for part in stem.split("_"):
+        if part.startswith("t"):
+            try:
+                return float(part[1:])
+            except ValueError:
+                continue
+    return None
+
+
 def moments_from_transcripts(path: Path | str) -> list[Moment]:
     """Moments from an optional transcripts sidecar.
 

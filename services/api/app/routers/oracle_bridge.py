@@ -47,6 +47,19 @@ def get_embedder(request: Request) -> Any:
     return FireworksEmbeddings(_require_key(request))
 
 
+def get_clip_encoder(request: Request) -> Any | None:
+    """The injected CLIP encoder (tests), a real one if open_clip is installed, else None."""
+    injected = getattr(request.app.state, "oracle_clip", None)
+    if injected is not None:
+        return injected
+    try:
+        from oracle.clip_embed import OpenClipEncoder
+
+        return OpenClipEncoder()
+    except ImportError:
+        return None
+
+
 def get_chat(request: Request) -> Any:
     """The injected chat client (tests), or a Fireworks one from the request/env key."""
     injected = getattr(request.app.state, "oracle_chat", None)

@@ -48,6 +48,21 @@ class Settings(BaseSettings):
         """Path to the output results file."""
         return self.output_dir / "results.json"
 
+    @property
+    def transcripts_path(self) -> Path:
+        """Path to the optional transcript sidecar consumed by the Track 3 oracle."""
+        return self.output_dir / "transcripts.json"
+
+    # --- Sidecars (Track 3 oracle enrichment; never part of the scored contract) ---
+    emit_transcripts: bool = Field(
+        default=True,
+        description="Write /output/transcripts.json (timed segments) after the run.",
+    )
+    emit_keyframes: bool = Field(
+        default=False,
+        description="Also persist keyframe JPEGs under /output/keyframes/ (off: larger output).",
+    )
+
     # --- Model identifiers ---
     whisper_model_size: str = Field(
         default="large-v3",
