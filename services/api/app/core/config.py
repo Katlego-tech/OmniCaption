@@ -89,6 +89,7 @@ class Settings(BaseSettings):
             return self.captioner_cmd
 
         import os
+
         env_flags: list[str] = []
         fw_key = os.environ.get("FIREWORKS_API_KEY", "")
         if fw_key:
