@@ -1,0 +1,43 @@
+# OmniCaption captioner — CPU dev image (NOT the AMD submission artifact).
+#
+# For local development / UI testing on machines without an AMD GPU. Runs the
+# real 6-stage pipeline with faster-whisper int8 on CPU (PLAN.md: "int8 CPU for
+# dev") and remote Fireworks synthesis. No ROCm base, no CTranslate2 source
+# compile, no torch — every torch/GPU call in the app is guarded and no-ops on
+# CPU. Small (~1 GB) and quick to build.
+#
+# Build:  docker build -f Dockerfile.dev -t omnicaption-captioner:latest .
+FROM python:3.11-slim
+
+# ffmpeg is required by the ingestion stage for audio extraction.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# The CPU CTranslate2 wheel is pulled in transitively by faster-whisper; torch is
+# intentionally omitted (device detection / VRAM reclaim degrade to no-ops).
+RUN pip install --no-cache-dir \
+    "faster-whisper>=1.0,<2.0" \
+    "opencv-python-headless>=4.9" \
+    "numpy>=1.26,<3.0" \
+    "pydantic>=2.6,<3.0" \
+    "pydantic-settings>=2.2,<3.0" \
+    "requests>=2.31"
+
+# Bake the small "base" Whisper weights so runtime does no hub download, then
+# force the hub offline (video download + Fireworks API still use the network).
+ENV HF_HOME=/opt/hf-cache
+RUN python -c "import huggingface_hub; huggingface_hub.snapshot_download('Systran/faster-whisper-base', cache_dir='/opt/hf-cache')"
+ENV HF_HUB_OFFLINE=1
+
+COPY app ./app
+
+# CPU-friendly dev defaults.
+ENV OMNICAPTION_WHISPER_MODEL_SIZE=base \
+    OMNICAPTION_WHISPER_COMPUTE_TYPE=int8 \
+    PYTHONUNBUFFERED=1
+
+VOLUME ["/input", "/output"]
+ENTRYPOINT ["python", "-m", "app.main"]

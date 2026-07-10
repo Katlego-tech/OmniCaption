@@ -109,3 +109,104 @@ def test_synthesis_fallback_on_api_error(
     # generate_for_styles handles exceptions and returns fallback caption
     captions = synth.generate_for_styles(keyframes, transcript, [Style.FORMAL])
     assert "[Fallback]" in captions[Style.FORMAL]
+
+
+def _mock_content(monkeypatch: pytest.MonkeyPatch, content: str, finish_reason: str = "stop"):
+    """Patch requests.post so the VLM returns ``content`` with a 200."""
+
+    class MockResponse:
+        status_code = 200
+
+        def json(self):
+            return {"choices": [{"message": {"content": content}, "finish_reason": finish_reason}]}
+
+    monkeypatch.setattr(requests, "post", lambda *a, **k: MockResponse())
+
+
+@pytest.mark.parametrize(
+    "content",
+    [
+        "<captionStyle>...</captionStyle>",  # the observed deadpan ellipsis
+        "<captionStyle>…</captionStyle>",  # unicode ellipsis
+        "<captionStyle>   </captionStyle>",  # whitespace only
+        "<captionStyle>--</captionStyle>",  # punctuation only
+        "",  # empty response
+        "...",  # untagged punctuation-only
+    ],
+)
+def test_degenerate_caption_raises_synthesis_error(
+    monkeypatch: pytest.MonkeyPatch, settings_with_key: Settings, content: str
+) -> None:
+    """A punctuation-only / empty caption must be rejected, not returned."""
+    from app.core.errors import SynthesisError
+
+    synth = CaptionSynthesizer(settings_with_key)
+    synth.load()
+    keyframes = [Keyframe(index=0, timestamp=0.0, image=np.zeros((2, 2, 3), dtype=np.uint8))]
+    transcript = Transcript(language="en", duration=1.0)
+    _mock_content(monkeypatch, content)
+
+    with pytest.raises(SynthesisError):
+        synth.generate_caption(keyframes, transcript, Style.SARCASTIC)
+
+
+def test_degenerate_caption_falls_back_grounded(
+    monkeypatch: pytest.MonkeyPatch, settings_with_key: Settings
+) -> None:
+    """The batch path turns a degenerate caption into a grounded fallback, never '...'."""
+    synth = CaptionSynthesizer(settings_with_key)
+    synth.load()
+    keyframes = [Keyframe(index=0, timestamp=0.0, image=np.zeros((2, 2, 3), dtype=np.uint8))]
+    transcript = Transcript(language="en", duration=1.0)
+    _mock_content(monkeypatch, "<captionStyle>...</captionStyle>")
+
+    captions = synth.generate_for_styles(keyframes, transcript, [Style.SARCASTIC])
+
+    assert captions[Style.SARCASTIC] != "..."
+    assert "[Fallback]" in captions[Style.SARCASTIC]
+
+
+def test_short_but_real_caption_is_kept(
+    monkeypatch: pytest.MonkeyPatch, settings_with_key: Settings
+) -> None:
+    """Guard against over-rejection: a short real caption with words is returned."""
+    synth = CaptionSynthesizer(settings_with_key)
+    synth.load()
+    keyframes = [Keyframe(index=0, timestamp=0.0, image=np.zeros((2, 2, 3), dtype=np.uint8))]
+    transcript = Transcript(language="en", duration=1.0)
+    _mock_content(monkeypatch, "<captionStyle>Rush hour.</captionStyle>")
+
+    assert synth.generate_caption(keyframes, transcript, Style.SARCASTIC) == "Rush hour."
+
+
+def test_untagged_reasoning_leak_falls_back(
+    monkeypatch: pytest.MonkeyPatch, settings_with_key: Settings
+) -> None:
+    """A long tag-less chain-of-thought blob must never become the caption."""
+    synth = CaptionSynthesizer(settings_with_key)
+    synth.load()
+    keyframes = [Keyframe(index=0, timestamp=0.0, image=np.zeros((2, 2, 3), dtype=np.uint8))]
+    transcript = Transcript(language="en", duration=1.0)
+    leak = "Let me think about what would be funny here. Maybe something like... " * 30
+    _mock_content(monkeypatch, leak, finish_reason="length")
+
+    captions = synth.generate_for_styles(keyframes, transcript, [Style.HUMOROUS_NON_TECH])
+
+    assert "[Fallback]" in captions[Style.HUMOROUS_NON_TECH]
+    assert "Let me think" not in captions[Style.HUMOROUS_NON_TECH]
+
+
+def test_truncated_untagged_response_raises(
+    monkeypatch: pytest.MonkeyPatch, settings_with_key: Settings
+) -> None:
+    """finish_reason='length' with no closing tag is a truncation, not a caption."""
+    from app.core.errors import SynthesisError
+
+    synth = CaptionSynthesizer(settings_with_key)
+    synth.load()
+    keyframes = [Keyframe(index=0, timestamp=0.0, image=np.zeros((2, 2, 3), dtype=np.uint8))]
+    transcript = Transcript(language="en", duration=1.0)
+    _mock_content(monkeypatch, "The scene shows a figure walking through", finish_reason="length")
+
+    with pytest.raises(SynthesisError):
+        synth.generate_caption(keyframes, transcript, Style.FORMAL)

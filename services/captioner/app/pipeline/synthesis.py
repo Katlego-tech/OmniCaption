@@ -8,6 +8,7 @@ returned. Styles for a single clip are generated in a loop over shared evidence.
 
 from __future__ import annotations
 
+import re
 from typing import TYPE_CHECKING, Any
 
 import requests
@@ -23,6 +24,25 @@ if TYPE_CHECKING:
     from app.pipeline.vision import Keyframe
 
 logger = get_logger(__name__)
+
+_CAPTION_TAG_RE = re.compile(r"<captionStyle>(.*?)</captionStyle>", re.DOTALL)
+# A genuine tag-less caption is a sentence or two. Anything longer without the
+# required tag is a reasoning VLM leaking its chain-of-thought (usually because it
+# was truncated before closing the tag), not a caption.
+_MAX_UNTAGGED_CAPTION_CHARS = 300
+
+
+def _is_meaningful_caption(text: str) -> bool:
+    """Whether ``text`` is a substantive caption rather than a degenerate one.
+
+    A reasoning VLM occasionally emits punctuation-only content inside the tags
+    (e.g. a bare ``...`` for a deadpan persona) or gets truncated to nothing.
+    Such output must not reach the results file — the caller falls back to a
+    grounded deterministic caption instead. Substantive means it has at least a
+    few characters and contains a real alphanumeric word, not just punctuation.
+    """
+    stripped = text.strip()
+    return len(stripped) >= 3 and bool(re.search(r"[A-Za-z0-9]", stripped))
 
 
 class CaptionSynthesizer:
@@ -155,18 +175,37 @@ class CaptionSynthesizer:
 
         try:
             res_json = response.json()
-            caption = res_json["choices"][0]["message"]["content"]
-
-            # Extract content from <captionStyle>...</captionStyle> tags
-            import re
-
-            match = re.search(r"<captionStyle>(.*?)</captionStyle>", caption, re.DOTALL)
-            if match:
-                return match.group(1).strip()
-            # Fallback if tags not found (e.g. if model outputted directly)
-            return caption.strip()
+            choice = res_json["choices"][0]
+            content = choice["message"]["content"]
+            finish_reason = choice.get("finish_reason")
         except Exception as exc:
             raise SynthesisError(f"Failed to parse Fireworks Vision API response: {exc}") from exc
+
+        # Prefer the tagged caption; a reasoning VLM keeps its thinking outside the
+        # tags. A response with no closing tag has either leaked raw chain-of-thought
+        # or been truncated before the tag closed (finish_reason == "length") — dump
+        # neither into results.json; fail so the caller falls back to a grounded
+        # caption. A short tag-less response is still accepted (some models answer
+        # directly).
+        match = _CAPTION_TAG_RE.search(content)
+        if match:
+            caption = match.group(1).strip()
+        else:
+            caption = content.strip()
+            if finish_reason == "length" or len(caption) > _MAX_UNTAGGED_CAPTION_CHARS:
+                raise SynthesisError(
+                    f"VLM response for style={style.value} has no <captionStyle> tag and "
+                    f"appears truncated or leaked reasoning "
+                    f"(finish_reason={finish_reason!r}, chars={len(caption)})."
+                )
+
+        if not _is_meaningful_caption(caption):
+            raise SynthesisError(
+                f"VLM returned a non-substantive caption for style={style.value} "
+                f"(finish_reason={finish_reason!r}, tagged={bool(match)}, "
+                f"caption={caption[:60]!r})."
+            )
+        return caption
 
     def generate_for_styles(
         self,
