@@ -25,17 +25,17 @@ Planning is now self-driven through [SPEC.md](SPEC.md) / [PLAN.md](PLAN.md) / [T
 | Polish: golden-clip regression tests (T096) | Tumo | Claude | ✅ merged (via #7/#8) |
 | Polish: planning-doc reconciliation (T101 part 1) | Tumo | Claude | ✅ merged (via #7/#8) |
 | Polish: AMD proof + image push (T095, T099) | Katlego | Gemini | ✅ completed |
-| Web frontend architecture (Track 3 stretch) | Katlego | Claude | 🔄 plan drafted |
-| Web frontend backend API (`services/api/`) | Tumo | Claude | 🔄 PR open |
+| Web frontend architecture (Track 3 stretch) | Katlego | Claude | ✅ plan merged (PR #9) |
+| Web frontend backend API (`services/api/`) | Tumo | Claude | ✅ merged (PR #9) |
+| Release sweep (T101, T102) | Tumo | Claude | ✅ completed |
+| Web frontend pages (Ollama + VengeanceUI) | Katlego | Gemini | ⬜ open |
 
 ## ⏭️ Next action
 
-1. **Katlego:** Tumo's backend (`services/api/`) is scaffolded on `feat/api-backend` — review/merge the
-   PR, then generate frontend pages via local Ollama (qwen3:14b) and wire up VengeanceUI components
-   against the API contract (see `services/api/README.md` for the live endpoint table).
-2. **Katlego:** Close stale PRs #3, #4, #5, #6 — their content was fully absorbed into `main` by the
-   #7/#8 merges (each now has an empty diff vs `main`); the branches can be deleted.
-3. **Katlego & Tumo:** T101, T102 — Final release sweep: merge branch to main, tag release, and verify CI green.
+1. **Katlego:** Generate frontend pages (`apps/web/`) via local Ollama (qwen3:14b) and wire up
+   VengeanceUI components against the merged API contract (endpoint table in
+   `services/api/README.md`; the backend is live on `main`).
+2. **Both:** Submission packaging for Saturday 6PM — the Track 2 pipeline is code-complete and tagged.
 
 ## 🗓️ Timeline (to Saturday July 11 — 6PM)
 
@@ -155,3 +155,12 @@ Planning is now self-driven through [SPEC.md](SPEC.md) / [PLAN.md](PLAN.md) / [T
   env contract per docs/18 §6 (`CORS_ORIGINS`/`DATA_DIR`/`CAPTIONER_IMAGE`/`CAPTIONER_CMD`).
   Extended CI + pre-push gates with an `api` lane. Verified with the gate's own interpreter:
   api 27/27 green, captioner 49 green + 1 gated skip, ruff check + format clean on both.
+- 2026-07-10 — Tumo (via Claude) — Merged PR #9 (backend API + Katlego's docs/18 plan) with both
+  CI lanes green; post-merge CI on main green. Housekeeping: closed stale PRs #3/#5 (#4/#6 were
+  already closed) and deleted the merged branches (Tumo-approved). T101/T102 release sweep:
+  AGENTS.md repo map now includes `services/api/`; the 2026-07-09 hybrid-stack plan change was
+  already recorded in PLAN.md by T101 pt.1. Gate evidence for T102: CI green on main (both
+  lanes), image gate 9.58 GB ≤ 10 GB (measured by Katlego, T096/T099), AMD-compute proof drafted
+  in docs/submission-amd-proof.md (T095), latency guards enforced in code with a verified clean
+  end-to-end run (2026-07-09 log). Tagging release v1.0.0 on this merge. Remaining before
+  submission: Katlego's frontend page generation (Track 3 stretch — does not gate Track 2).
