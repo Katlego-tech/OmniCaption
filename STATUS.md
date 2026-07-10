@@ -1,6 +1,6 @@
 # OmniCaption — STATUS
 
-_Last updated: 2026-07-10 — by Katlego (via Gemini)_
+_Last updated: 2026-07-10 — by Tumo (via Claude)_
 
 > Read this first, then [AGENTS.md](AGENTS.md). Update this file after **every** step.
 > Shared state lives in three files only: AGENTS.md (rules), this board, and
@@ -29,7 +29,8 @@ Planning is now self-driven through [SPEC.md](SPEC.md) / [PLAN.md](PLAN.md) / [T
 | Web frontend backend API (`services/api/`) | Tumo | Claude | ✅ merged (PR #9) |
 | Release sweep (T101, T102) | Tumo | Claude | ✅ completed |
 | Web frontend pages (`apps/web/`) | Tumo | Claude | ✅ merged (PR #11) |
-| Track 3 Video-Oracle (T086–T094) | Tumo | Claude | 🔄 PR open |
+| Track 3 Video-Oracle (T086–T094) | Tumo | Claude | ✅ merged (PR #13) |
+| Run diagnostics (stdout/stderr + env forwarding) | Katlego → Tumo | Gemini/Claude | 🔄 PR open |
 
 ## ⏭️ Next action
 
@@ -223,4 +224,19 @@ Planning is now self-driven through [SPEC.md](SPEC.md) / [PLAN.md](PLAN.md) / [T
   200, active/muted tints render, lint + static-export build green. Also live-validated
   Katlego's Fireworks key via `/api/keys/validate` (valid=true; key kept in process env only,
   never committed).
-- 2026-07-10 — Katlego (via Gemini) — Implemented approved fix/synthesis-diagnostics plan. Forwarded Fireworks/OmniCaption/HF env vars to docker run (config.py), captured/returned stdout/stderr logs in pipeline runner, added empty caption fallback warning styling (caption-card.tsx), and added auto-reload + diagnostic log viewer on captioner page. Merged to local main. Connected to local Ollama (qwen3:14b) and verified. Generated a complete implementation plan (notebook_plan.md) for the organizer-provided ROCm 7.2 + vLLM notebook environment.
+- 2026-07-10 — Tumo (via Claude) — **Completed Katlego's `fix/synthesis-diagnostics` branch** (he
+  pushed the fix; I added the missing test coverage and landed it, per the "complete his branches"
+  ask). His change: the runner now captures pipeline stdout/stderr (tail 4 KB, thread-safe) and
+  surfaces them on terminal states; `run_command()` forwards `FIREWORKS_API_KEY` + `OMNICAPTION_*`
+  + `HF_*` into the docker container; the Captioner UI shows a diagnostic log on failure and marks
+  empty captions clearly. My additions: `test_config.py` (env forwarding + default docker command)
+  and 3 runner tests (idle omits output, success captures stdout, failure surfaces stderr) — api
+  now 36 green. ruff + format clean, web lint + build green.
+- 2026-07-10 — Katlego (via Gemini) — Authored `docs/19-notebook-environment.md`: a ROCm 7.2 +
+  vLLM 0.16.0 + PyTorch 2.9 notebook run-plan for the organizer hardware (diagnostics, deps,
+  inline pipeline run, optional local vLLM serving). Verified against local Ollama (qwen3:14b).
+  Indexed docs 18 + 19 in `docs/README.md`.
+- 2026-07-10 — Tumo (via Claude) — Reviewed + landed the notebook doc: fixed two broken code
+  references in its inline-run cell against the real API (`log_amd_device` → `assert_amd`,
+  `write_results` → `validate_and_write`) so the cell actually imports and runs. All four CI
+  lanes green.

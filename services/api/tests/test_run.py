@@ -57,3 +57,39 @@ def test_concurrent_run_is_rejected(tmp_path) -> None:
     client = TestClient(create_app(settings))
     assert client.post("/api/tasks/run").status_code == 202
     assert client.post("/api/tasks/run").status_code == 409
+
+
+def test_idle_status_omits_diagnostic_output(client: TestClient) -> None:
+    body = client.get("/api/tasks/run").json()
+    assert body["state"] == "idle"
+    assert "stdout" not in body and "stderr" not in body
+
+
+def test_succeeded_status_captures_stdout(tmp_path) -> None:
+    settings = Settings(
+        data_dir=tmp_path,
+        captioner_cmd=f'"{sys.executable}" -c "print(\'hello-out\')"',
+        _env_file=None,
+    )
+    client = TestClient(create_app(settings))
+    assert client.post("/api/tasks/run").status_code == 202
+    status = _wait_for_terminal_state(client)
+    assert status["state"] == "succeeded"
+    assert "hello-out" in status["stdout"]
+
+
+def test_failed_status_surfaces_stderr(tmp_path) -> None:
+    settings = Settings(
+        data_dir=tmp_path,
+        captioner_cmd=(
+            f'"{sys.executable}" -c '
+            "\"import sys; sys.stderr.write('boom-diagnostic'); sys.exit(2)\""
+        ),
+        _env_file=None,
+    )
+    client = TestClient(create_app(settings))
+    assert client.post("/api/tasks/run").status_code == 202
+    status = _wait_for_terminal_state(client)
+    assert status["state"] == "failed"
+    assert status["returncode"] == 2
+    assert "boom-diagnostic" in status["stderr"]

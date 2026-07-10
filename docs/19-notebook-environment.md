@@ -157,13 +157,13 @@ import json
 sys.path.insert(0, ".")
 
 from app.core.config import get_settings
-from app.core.gpu import log_amd_device
+from app.core.gpu import assert_amd
 from app.core.schema import Task
 from app.pipeline.orchestrator import CaptionPipeline
-from app.pipeline.output import write_results
+from app.pipeline.output import validate_and_write
 
-# Log the active hardware profile
-log_amd_device()
+# Log the active hardware profile (device, gfx arch, VRAM)
+assert_amd(enforced=False)
 
 cfg = get_settings()
 
@@ -180,8 +180,8 @@ pipeline.close()
 
 elapsed = time.monotonic() - start_time
 
-# Write output results
-write_results(results, cfg.results_path)
+# Write output results (schema-validated + atomic)
+validate_and_write(results, cfg.results_path)
 
 print(f"\n============================================================")
 print(f"Pipeline executed in {elapsed:.2f} seconds.")
