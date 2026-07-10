@@ -45,6 +45,22 @@ if [ -d "$captioner" ]; then
   fi
 fi
 
+# --- 3. Backend API Python tests ---------------------------------------------
+api="$root/services/api"
+if [ -d "$api" ]; then
+  if python -c "import pytest, fastapi" >/dev/null 2>&1; then
+    echo "→ pytest (services/api)"
+    ( cd "$api" && python -m pytest -q ) || fail=1
+  else
+    echo "⏭️  pytest/fastapi not importable locally — skipping (CI still runs it)."
+  fi
+
+  if command -v ruff >/dev/null 2>&1; then
+    echo "→ ruff check (services/api)"
+    ( cd "$api" && ruff check . ) || fail=1
+  fi
+fi
+
 if [ "$fail" -ne 0 ]; then
   echo "❌  Test gate failed. Fix it before pushing (or --no-verify only for a green branch)."
   exit 1
