@@ -1,6 +1,6 @@
 # OmniCaption — STATUS
 
-_Last updated: 2026-07-10 — by Tumo (via Claude)_
+_Last updated: 2026-07-10 — by Katlego (via Gemini)_
 
 > Read this first, then [AGENTS.md](AGENTS.md). Update this file after **every** step.
 > Shared state lives in three files only: AGENTS.md (rules), this board, and
@@ -223,3 +223,4 @@ Planning is now self-driven through [SPEC.md](SPEC.md) / [PLAN.md](PLAN.md) / [T
   200, active/muted tints render, lint + static-export build green. Also live-validated
   Katlego's Fireworks key via `/api/keys/validate` (valid=true; key kept in process env only,
   never committed).
+- 2026-07-10 — Katlego (via Gemini) — Implemented approved fix/synthesis-diagnostics plan. Forwarded Fireworks/OmniCaption/HF env vars to docker run (config.py), captured/returned stdout/stderr logs in pipeline runner, added empty caption fallback warning styling (caption-card.tsx), and added auto-reload + diagnostic log viewer on captioner page. Merged to local main. Connected to local Ollama (qwen3:14b) and verified. Generated a complete implementation plan (notebook_plan.md) for the organizer-provided ROCm 7.2 + vLLM notebook environment.
