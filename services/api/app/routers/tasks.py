@@ -6,13 +6,14 @@ import json
 import os
 import tempfile
 from pathlib import Path
+from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 
 from app.core.config import Settings
 from app.core.deps import get_runner, get_settings, require_user
 from app.core.runner import PipelineRunner
-from app.schemas import TaskIn
+from app.schemas import TaskIn, resolve_host_is_internal
 
 router = APIRouter()
 
@@ -50,6 +51,16 @@ def submit_tasks(
 ) -> list[dict]:
     """Validate task(s) and merge them into the manifest (same task_id replaces)."""
     submitted = [body] if isinstance(body, TaskIn) else body
+
+    if settings.ssrf_resolve_dns:
+        for task in submitted:
+            host = urlparse(task.video_url).hostname
+            if host and resolve_host_is_internal(host):
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail="video_url host resolves to an internal address.",
+                )
+
     incoming = [task.model_dump(mode="json") for task in submitted]
 
     manifest = _read_manifest(settings.tasks_path)

@@ -2,10 +2,10 @@
 HMAC-signed bearer tokens — all stdlib, no extra dependencies.
 
 The token is a compact ``payload.signature`` pair (both base64url):
-``payload`` is JSON ``{"uid", "email", "exp"}``; ``signature`` is
-HMAC-SHA256 over the payload with the configured secret, compared in
-constant time. This is a deliberately small, well-understood scheme for the
-hackathon demo — not a full identity provider.
+``payload`` is JSON ``{"uid", "email", "tv", "exp"}`` (``tv`` = token version,
+for revocation); ``signature`` is HMAC-SHA256 over the payload, compared in
+constant time. Deliberately small and well-understood for the hackathon — not
+a full identity provider.
 """
 
 from __future__ import annotations
@@ -17,6 +17,7 @@ import hmac
 import json
 import logging
 import os
+import secrets
 import sqlite3
 import time
 
@@ -33,7 +34,7 @@ _DUMMY_SALT = b"\x00" * _SALT_BYTES
 
 
 class AuthError(Exception):
-    """A recoverable auth failure (bad credentials, duplicate email, bad token)."""
+    """A recoverable auth failure (bad credentials, bad token, unverified)."""
 
 
 def _b64url_encode(raw: bytes) -> str:
@@ -50,11 +51,12 @@ def _hash_password(password: str, salt: bytes) -> bytes:
 
 
 class AuthService:
-    """User accounts + token issuance/verification for one API instance."""
+    """User accounts + token issuance/verification/revocation for one instance."""
 
     def __init__(self, settings: Settings) -> None:
         self._secret = _resolve_secret(settings)
         self._ttl_s = settings.token_ttl_hours * 3600
+        self._require_verification = settings.require_verification
         self._db_path = settings.auth_db_path
         self._db_path.parent.mkdir(parents=True, exist_ok=True)
         self._init_db()
@@ -71,60 +73,109 @@ class AuthService:
                     email TEXT UNIQUE NOT NULL,
                     salt BLOB NOT NULL,
                     pw_hash BLOB NOT NULL,
+                    verified INTEGER NOT NULL DEFAULT 1,
+                    verification_token TEXT,
+                    token_version INTEGER NOT NULL DEFAULT 0,
                     created_at REAL NOT NULL
                 )
                 """
             )
 
     # --- accounts ----------------------------------------------------------
-    def create_user(self, email: str, password: str) -> int:
-        """Create a user and return its id; raises AuthError on duplicate email."""
+    def create_user(self, email: str, password: str) -> tuple[int | None, str | None]:
+        """Create a user.
+
+        Returns ``(user_id, verification_token)`` for a new account, or
+        ``(None, None)`` if the email already exists — the caller returns an
+        identical response either way so signup does not leak account existence.
+        The verification token is non-None only when verification is required.
+        """
         email = email.strip().lower()
         salt = _random_salt()
         pw_hash = _hash_password(password, salt)
+        verified = 0 if self._require_verification else 1
+        token = secrets.token_urlsafe(32) if self._require_verification else None
         try:
             with self._connect() as conn:
                 cur = conn.execute(
-                    "INSERT INTO users (email, salt, pw_hash, created_at) VALUES (?, ?, ?, ?)",
-                    (email, salt, pw_hash, time.time()),
+                    "INSERT INTO users (email, salt, pw_hash, verified, verification_token, "
+                    "created_at) VALUES (?, ?, ?, ?, ?, ?)",
+                    (email, salt, pw_hash, verified, token, time.time()),
                 )
-                return int(cur.lastrowid)
-        except sqlite3.IntegrityError as exc:
-            raise AuthError("email already registered") from exc
+                return int(cur.lastrowid), token
+        except sqlite3.IntegrityError:
+            return None, None
+
+    def verify_email(self, token: str) -> tuple[int, str] | None:
+        """Consume a verification token; return ``(user_id, email)`` or None."""
+        if not token:
+            return None
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT id, email FROM users WHERE verification_token = ?", (token,)
+            ).fetchone()
+            if row is None:
+                return None
+            conn.execute(
+                "UPDATE users SET verified = 1, verification_token = NULL WHERE id = ?",
+                (row[0],),
+            )
+            return int(row[0]), str(row[1])
 
     def verify_credentials(self, email: str, password: str) -> int:
-        """Return the user id for valid credentials; raise AuthError otherwise.
+        """Return the user id for valid, verified credentials; raise otherwise.
 
-        Runs the password KDF even when the email is unknown, so response time
-        does not reveal which emails are registered (timing enumeration).
+        Runs the KDF even for unknown emails so response time does not reveal
+        which emails are registered.
         """
         email = email.strip().lower()
         with self._connect() as conn:
             row = conn.execute(
-                "SELECT id, salt, pw_hash FROM users WHERE email = ?", (email,)
+                "SELECT id, salt, pw_hash, verified FROM users WHERE email = ?", (email,)
             ).fetchone()
         if row is None:
             _hash_password(password, _DUMMY_SALT)  # equalize timing, then fail
             raise AuthError("invalid credentials")
-        user_id, salt, pw_hash = row
+        user_id, salt, pw_hash, verified = row
         candidate = _hash_password(password, salt)
         if not hmac.compare_digest(candidate, pw_hash):
             raise AuthError("invalid credentials")
+        if not verified:
+            raise AuthError("email not verified")
         return int(user_id)
+
+    def revoke_all(self, user_id: int) -> None:
+        """Invalidate every outstanding token for a user (logout-everywhere)."""
+        with self._connect() as conn:
+            conn.execute(
+                "UPDATE users SET token_version = token_version + 1 WHERE id = ?", (user_id,)
+            )
+
+    def _token_version(self, user_id: int) -> int | None:
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT token_version FROM users WHERE id = ?", (user_id,)
+            ).fetchone()
+        return None if row is None else int(row[0])
 
     # --- tokens ------------------------------------------------------------
     def issue_token(self, user_id: int, email: str) -> str:
-        """Mint a signed token carrying the user's identity and an expiry."""
-        payload = {"uid": user_id, "email": email.strip().lower(), "exp": time.time() + self._ttl_s}
+        """Mint a signed token carrying identity, token version, and expiry."""
+        payload = {
+            "uid": user_id,
+            "email": email.strip().lower(),
+            "tv": self._token_version(user_id) or 0,
+            "exp": time.time() + self._ttl_s,
+        }
         payload_b64 = _b64url_encode(json.dumps(payload, separators=(",", ":")).encode("utf-8"))
         signature = _b64url_encode(self._sign(payload_b64))
         return f"{payload_b64}.{signature}"
 
     def verify_token(self, token: str) -> dict:
-        """Return the token payload if the signature and expiry are valid.
+        """Return the token payload if signature, expiry, and version are valid.
 
         Raises:
-            AuthError: On a malformed, tampered, or expired token.
+            AuthError: On a malformed, tampered, expired, or revoked token.
         """
         try:
             payload_b64, signature_b64 = token.split(".", 1)
@@ -145,6 +196,10 @@ class AuthService:
             raise AuthError("malformed token") from exc
         if float(payload.get("exp", 0)) < time.time():
             raise AuthError("token expired")
+
+        current_tv = self._token_version(int(payload.get("uid", -1)))
+        if current_tv is None or int(payload.get("tv", -1)) != current_tv:
+            raise AuthError("token revoked")
         return payload
 
     def _sign(self, payload_b64: str) -> bytes:

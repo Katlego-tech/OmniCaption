@@ -53,11 +53,39 @@ class Settings(BaseSettings):
         default=24 * 7,
         description="Lifetime of an issued auth token, in hours.",
     )
+    rate_limit_max: int = Field(
+        default=20,
+        description="Max auth attempts (signup/login/verify) per window, per client IP.",
+    )
+    rate_limit_window_s: int = Field(
+        default=60, description="Sliding window for auth rate limiting, in seconds."
+    )
+    require_verification: bool = Field(
+        default=False,
+        description="Require email verification before login. When true, signup returns a "
+        "generic 202 (no token, no account-existence oracle) and login blocks unverified users.",
+    )
+    cookie_secure: bool = Field(
+        default=False, description="Set the Secure flag on the session cookie (enable over HTTPS)."
+    )
+    cookie_samesite: str = Field(
+        default="lax", description="SameSite policy for the session cookie (lax/strict/none)."
+    )
+    ssrf_resolve_dns: bool = Field(
+        default=True,
+        description="Resolve video_url hostnames at submit and reject internal IPs "
+        "(mitigates DNS-based SSRF; disable in offline tests).",
+    )
 
     @property
     def auth_db_path(self) -> Path:
         """SQLite file holding user accounts."""
         return self.data_dir / "auth.db"
+
+    @property
+    def auth_outbox_dir(self) -> Path:
+        """Dev mailer outbox for verification links."""
+        return self.data_dir / "outbox"
 
     @property
     def cors_origin_list(self) -> list[str]:

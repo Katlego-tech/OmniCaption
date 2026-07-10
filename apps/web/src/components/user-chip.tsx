@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui";
+import { api } from "@/lib/api";
 import { clearSession, getEmail } from "@/lib/auth";
 
 export function UserChip() {
@@ -14,7 +15,13 @@ export function UserChip() {
     setEmail(getEmail());
   }, []);
 
-  const logout = () => {
+  const logout = async () => {
+    // Revoke the token server-side (logout-everywhere); clear locally regardless.
+    try {
+      await api.logout();
+    } catch {
+      // best-effort — still clear the local session below
+    }
     clearSession();
     router.replace("/login");
   };
