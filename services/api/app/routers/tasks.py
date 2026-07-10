@@ -7,7 +7,7 @@ import os
 import tempfile
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 
 from app.core.config import Settings
 from app.core.deps import get_runner, get_settings
@@ -58,6 +58,27 @@ def submit_tasks(
 
     _write_manifest_atomically(settings.tasks_path, merged)
     return incoming
+
+
+@router.delete("")
+def clear_tasks(settings: Settings = Depends(get_settings)) -> Response:
+    """Remove every task from the manifest."""
+    _write_manifest_atomically(settings.tasks_path, [])
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.delete("/{task_id}")
+def delete_task(task_id: str, settings: Settings = Depends(get_settings)) -> Response:
+    """Remove one task by id; 404 if it is not in the manifest."""
+    manifest = _read_manifest(settings.tasks_path)
+    remaining = [task for task in manifest if task.get("task_id") != task_id]
+    if len(remaining) == len(manifest):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No task with id {task_id!r}.",
+        )
+    _write_manifest_atomically(settings.tasks_path, remaining)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.post("/run", status_code=status.HTTP_202_ACCEPTED)

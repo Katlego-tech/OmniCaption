@@ -240,3 +240,16 @@ Planning is now self-driven through [SPEC.md](SPEC.md) / [PLAN.md](PLAN.md) / [T
   references in its inline-run cell against the real API (`log_amd_device` → `assert_amd`,
   `write_results` → `validate_and_write`) so the cell actually imports and runs. All four CI
   lanes green.
+- 2026-07-10 — Tumo (via Claude) — **Auth (login/signup) + delete endpoints** (user-requested;
+  tests-first). Backend: `AuthService` (stdlib only — SQLite user store at `<DATA_DIR>/auth.db`,
+  PBKDF2-hashed passwords, HMAC-signed expiring bearer tokens) with `POST /api/auth/signup`,
+  `/login`, `GET /api/auth/me`; plus `DELETE /api/tasks[/{id}]` and `DELETE /api/results[/{id}]`
+  (delete-one + clear-all, 204/404). Frontend: `/login` + `/signup` pages, localStorage session,
+  client-side dashboard `AuthGuard` + user chip/logout, Bearer header on every call, and trash
+  (Icons8) delete buttons on queued tasks and generated captions. **New env: `AUTH_SECRET`** —
+  default is a dev placeholder, must be overridden in prod. api suite 36 → 54, ruff clean; web
+  lint + 13-route static build green. **Live-smoked the whole flow** on the running stack:
+  signup → duplicate-409 → login → wrong-pw-401 → `/me` with/without/tampered token → task &
+  result delete (one/all/404) all behaved correctly. Note: existing task/result/run endpoints
+  stay unauthenticated (parity with prior behavior); gating mutations behind the token is a
+  possible follow-up.

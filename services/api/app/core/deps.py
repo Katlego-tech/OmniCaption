@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from fastapi import Request
 
+from app.core.auth import AuthService
 from app.core.config import Settings
 from app.core.runner import PipelineRunner
 
@@ -16,3 +17,8 @@ def get_settings(request: Request) -> Settings:
 def get_runner(request: Request) -> PipelineRunner:
     """The process-wide pipeline runner."""
     return request.app.state.runner
+
+
+def get_auth(request: Request) -> AuthService:
+    """The process-wide auth service."""
+    return request.app.state.auth

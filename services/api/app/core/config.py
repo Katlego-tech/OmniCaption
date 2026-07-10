@@ -43,6 +43,19 @@ class Settings(BaseSettings):
         default="https://api.fireworks.ai/inference/v1",
         description="Fireworks AI base URL probed by /api/keys/validate.",
     )
+    auth_secret: str = Field(
+        default="dev-insecure-change-me",
+        description="HMAC signing secret for auth tokens. MUST be overridden in production.",
+    )
+    token_ttl_hours: int = Field(
+        default=24 * 7,
+        description="Lifetime of an issued auth token, in hours.",
+    )
+
+    @property
+    def auth_db_path(self) -> Path:
+        """SQLite file holding user accounts."""
+        return self.data_dir / "auth.db"
 
     @property
     def cors_origin_list(self) -> list[str]:
