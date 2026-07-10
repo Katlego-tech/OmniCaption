@@ -222,8 +222,8 @@ Each user-story phase is ordered **Tests FIRST (must FAIL) â†’ Implementation â†
 - [x] T098 [P] [POL] Ruff clean pass (100 col) + type/docstring sweep across `app/`.
 - [x] T099 [POL] Build, tag, and push the `linux/amd64` image; verify pulled image runs the sample batch.
 - [x] T100 [POL] Local smoke test from a clean checkout following [services/captioner/README.md](services/captioner/README.md); fix any drift.
-- [ ] T101 [P] [POL] Update `STATUS.md`/`AGENTS.md`, tag a release, and note any change to the project non-negotiables in [PLAN.md](PLAN.md).
-- [ ] T102 [POL] Final always-green `main` verification: CI green, image-size + latency + AMD-compute gates pass.
+- [x] T101 [P] [POL] Update `STATUS.md`/`AGENTS.md`, tag a release, and note any change to the project non-negotiables in [PLAN.md](PLAN.md).
+- [x] T102 [POL] Final always-green `main` verification: CI green, image-size + latency + AMD-compute gates pass.
 
 ---
 

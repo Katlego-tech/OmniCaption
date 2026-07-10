@@ -89,7 +89,8 @@ OmniCaption/
 ├── .github/workflows/ci.yml  the CI test gate
 ├── .githooks/pre-push        the local test gate + main-branch protection
 ├── services/captioner/       the Python captioning pipeline + Dockerfile + tests
-└── apps/web/  (stretch)      Track 3 Video-Oracle demo
+├── services/api/             the FastAPI bridge between the web frontend and the pipeline
+└── apps/web/  (stretch)      Track 3 web frontend (docs/18-frontend-architecture.md)
 ```
 
 ## 8. Definition of Done
