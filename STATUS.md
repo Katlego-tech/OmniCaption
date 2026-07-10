@@ -232,3 +232,11 @@ Planning is now self-driven through [SPEC.md](SPEC.md) / [PLAN.md](PLAN.md) / [T
   empty captions clearly. My additions: `test_config.py` (env forwarding + default docker command)
   and 3 runner tests (idle omits output, success captures stdout, failure surfaces stderr) — api
   now 36 green. ruff + format clean, web lint + build green.
+- 2026-07-10 — Katlego (via Gemini) — Authored `docs/19-notebook-environment.md`: a ROCm 7.2 +
+  vLLM 0.16.0 + PyTorch 2.9 notebook run-plan for the organizer hardware (diagnostics, deps,
+  inline pipeline run, optional local vLLM serving). Verified against local Ollama (qwen3:14b).
+  Indexed docs 18 + 19 in `docs/README.md`.
+- 2026-07-10 — Tumo (via Claude) — Reviewed + landed the notebook doc: fixed two broken code
+  references in its inline-run cell against the real API (`log_amd_device` → `assert_amd`,
+  `write_results` → `validate_and_write`) so the cell actually imports and runs. All four CI
+  lanes green.
