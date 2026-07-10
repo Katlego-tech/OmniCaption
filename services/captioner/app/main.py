@@ -70,6 +70,14 @@ def run() -> int:
         cfg.results_path.parent.mkdir(parents=True, exist_ok=True)
         cfg.results_path.write_text("[]", encoding="utf-8")
 
+    if cfg.emit_transcripts and pipeline.transcripts:
+        try:
+            from app.pipeline.sidecars import write_transcript_sidecar
+
+            write_transcript_sidecar(pipeline.transcripts, cfg.transcripts_path)
+        except Exception as exc:  # noqa: BLE001 - sidecars never break the run
+            logger.warning("Transcript sidecar failed: %s", exc)
+
     return 0
 
 

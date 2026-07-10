@@ -10,7 +10,13 @@ from fastapi import APIRouter, Depends, Request
 
 from app.core.config import Settings
 from app.core.deps import get_settings
-from app.routers.oracle_bridge import get_chat, get_embedder, hit_to_dict, load_index
+from app.routers.oracle_bridge import (
+    get_chat,
+    get_clip_encoder,
+    get_embedder,
+    hit_to_dict,
+    load_index,
+)
 from app.schemas import QARequest
 
 router = APIRouter()
@@ -26,7 +32,13 @@ def qa(
     index = load_index(settings)  # raises the 501 stub before oracle imports are needed
     from oracle.qa import answer
 
-    result = answer(body.question, index, get_embedder(request), get_chat(request))
+    result = answer(
+        body.question,
+        index,
+        get_embedder(request),
+        get_chat(request),
+        clip_encoder=get_clip_encoder(request),
+    )
     return {
         "answer": result.answer,
         "citations": [hit_to_dict(hit) for hit in result.citations],

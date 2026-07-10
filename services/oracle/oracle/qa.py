@@ -35,13 +35,14 @@ def answer(
     embedder: Embedder,
     chat: ChatClient,
     top_k: int = 5,
+    clip_encoder=None,
 ) -> Answer:
     """Retrieve the most relevant moments and answer strictly from them.
 
     With an empty index the model is never called — there is nothing to ground
     an answer in, and an ungrounded answer would violate Non-negotiable I.
     """
-    hits = index.search(question, embedder, top_k=top_k)
+    hits = index.search(question, embedder, top_k=top_k, clip_encoder=clip_encoder)
     if not hits:
         return Answer(
             answer="No indexed moments are available to answer from — build the index first.",
