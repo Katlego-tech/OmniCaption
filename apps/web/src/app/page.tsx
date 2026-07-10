@@ -138,7 +138,11 @@ export default function LandingPage() {
         ·{" "}
         <Link href="/docs" className="transition-colors hover:text-muted">
           Docs
-        </Link>
+        </Link>{" "}
+        ·{" "}
+        <a href="https://icons8.com" className="transition-colors hover:text-muted">
+          Icons by Icons8
+        </a>
       </footer>
     </div>
   );
