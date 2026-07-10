@@ -28,13 +28,12 @@ Planning is now self-driven through [SPEC.md](SPEC.md) / [PLAN.md](PLAN.md) / [T
 | Web frontend architecture (Track 3 stretch) | Katlego | Claude | ✅ plan merged (PR #9) |
 | Web frontend backend API (`services/api/`) | Tumo | Claude | ✅ merged (PR #9) |
 | Release sweep (T101, T102) | Tumo | Claude | ✅ completed |
-| Web frontend pages (Ollama + VengeanceUI) | Katlego | Gemini | ⬜ open |
+| Web frontend pages (`apps/web/`) | Tumo | Claude | 🔄 in progress |
 
 ## ⏭️ Next action
 
-1. **Katlego:** Generate frontend pages (`apps/web/`) via local Ollama (qwen3:14b) and wire up
-   VengeanceUI components against the merged API contract (endpoint table in
-   `services/api/README.md`; the backend is live on `main`).
+1. **Tumo:** Build `apps/web/` (Next.js 15 static export) against the merged API contract — lane
+   taken over from Katlego by Tumo's call, 2026-07-10 (see Log).
 2. **Both:** Submission packaging for Saturday 6PM — the Track 2 pipeline is code-complete and tagged.
 
 ## 🗓️ Timeline (to Saturday July 11 — 6PM)
@@ -164,3 +163,20 @@ Planning is now self-driven through [SPEC.md](SPEC.md) / [PLAN.md](PLAN.md) / [T
   in docs/submission-amd-proof.md (T095), latency guards enforced in code with a verified clean
   end-to-end run (2026-07-09 log). Tagging release v1.0.0 on this merge. Remaining before
   submission: Katlego's frontend page generation (Track 3 stretch — does not gate Track 2).
+- 2026-07-10 — Tumo (via Claude) — **Lane takeover (Tumo's call):** claiming the frontend-pages
+  lane so it lands before Saturday; Katlego, shout if you'd rather run your Ollama flow — nothing
+  here blocks regenerating pages later. Building `apps/web/` per docs/18: Next.js 15 App Router,
+  TypeScript, Tailwind, `output: 'export'` static build, dark-first AMD-red theme.
+  **One deliberate deviation from docs/18 for reliability:** the VengeanceUI-style animated
+  components (aurora hero, flip-text, bento grid, animated counters, glow cards) are implemented
+  in-repo with Tailwind/CSS instead of pulling from the third-party vengenceui.com registry —
+  no external registry dependency in the build; swapping in real VengeanceUI components via the
+  shadcn CLI later remains possible. Dashboard stats are computed from live API data (no
+  invented numbers); Search/Oracle pages handle the 501 Track 3 stubs with honest
+  "not built yet" states.
+- 2026-07-10 — Tumo (via Claude) — Frontend pages shipped: all 7 routes (Landing, Dashboard,
+  Captioner Hub, Search, Oracle Chat, Accounts, Docs) build and export statically (11 static
+  routes, ~106 kB first-load JS). Typed API client over the full services/api contract with a
+  run-status poller; Accounts stores the backend URL + Fireworks key in localStorage only
+  (docs/18 option (a)). ESLint clean, `next build` green. CI gains a `web` lane
+  (npm ci → lint → static-export build).
