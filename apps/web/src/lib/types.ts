@@ -33,3 +33,23 @@ export interface RunStatus {
   state: RunState;
   returncode: number | null;
 }
+
+export interface SearchHit {
+  task_id: string;
+  kind: string;
+  style: string | null;
+  text: string;
+  t_start: number | null;
+  t_end: number | null;
+  score: number;
+}
+
+export interface SearchResponse {
+  query: string;
+  hits: SearchHit[];
+}
+
+export interface QAResponse {
+  answer: string;
+  citations: SearchHit[];
+}

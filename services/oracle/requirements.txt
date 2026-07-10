@@ -1,0 +1,4 @@
+# Runtime dependencies for the Video-Oracle (Track 3).
+# Text-modality MVP: embeddings + chat via Fireworks AI; index math is pure Python.
+httpx>=0.27
+pydantic>=2.7

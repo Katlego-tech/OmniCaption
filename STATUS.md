@@ -28,13 +28,16 @@ Planning is now self-driven through [SPEC.md](SPEC.md) / [PLAN.md](PLAN.md) / [T
 | Web frontend architecture (Track 3 stretch) | Katlego | Claude | ✅ plan merged (PR #9) |
 | Web frontend backend API (`services/api/`) | Tumo | Claude | ✅ merged (PR #9) |
 | Release sweep (T101, T102) | Tumo | Claude | ✅ completed |
-| Web frontend pages (`apps/web/`) | Tumo | Claude | 🔄 in progress |
+| Web frontend pages (`apps/web/`) | Tumo | Claude | ✅ merged (PR #11) |
+| Track 3 Video-Oracle (T086–T094) | Tumo | Claude | 🔄 PR open |
 
 ## ⏭️ Next action
 
-1. **Tumo:** Build `apps/web/` (Next.js 15 static export) against the merged API contract — lane
-   taken over from Katlego by Tumo's call, 2026-07-10 (see Log).
-2. **Both:** Submission packaging for Saturday 6PM — the Track 2 pipeline is code-complete and tagged.
+1. **Katlego:** Record the **public registry URL** for the captioner image in
+   docs/06-judging-criteria.md — the only unevidenced submission item.
+2. **Both:** Submission form for Saturday 6PM — Track 2 is code-complete, tagged v1.0.0, released.
+3. **Optional (post-submission):** CLIP visual embeddings for the oracle; persist transcript
+   sidecars from the pipeline to enrich the index.
 
 ## 🗓️ Timeline (to Saturday July 11 — 6PM)
 
@@ -180,3 +183,16 @@ Planning is now self-driven through [SPEC.md](SPEC.md) / [PLAN.md](PLAN.md) / [T
   run-status poller; Accounts stores the backend URL + Fireworks key in localStorage only
   (docs/18 option (a)). ESLint clean, `next build` green. CI gains a `web` lane
   (npm ci → lint → static-export build).
+- 2026-07-10 — Tumo (via Claude) — Submission packaging + release: docs/06 checklist refreshed
+  with landed evidence (PR #12) — **one open item: Katlego to record the public registry URL**;
+  README drift fixed (hybrid stack diagram, layout, web quickstart); GitHub Release **v1.0.0**
+  published. Track 3 Video-Oracle shipped as a **text-modality MVP** (Tumo-approved scope):
+  `services/oracle/` (T089) with Fireworks embeddings index + persistence (T090 text-modality /
+  T091), cosine top-k search (T092), grounded RAG QA with [task_id @ t] citations on Kimi-K2P6
+  (T093 per the Fireworks plan change), CLI (T094), tests-first T086–T088 (9 tests, Fireworks
+  mocked, red→green). `/api/search` + `/api/qa` now serve the index when present at
+  `<DATA_DIR>/oracle/index.json` (Fireworks key via `X-Fireworks-Key` header or env) and keep
+  the honest 501 otherwise; web Search/Oracle pages render ranked hits and cited answers. CI
+  gains an `oracle` lane (4 lanes total). Suites: oracle 9/9 (3 seeds), api 30/30, captioner
+  49+1 skip, web lint+build green. **Honest scope note:** CLIP visual keyframe embeddings are
+  NOT implemented — the index is text-only (captions + optional transcript sidecars).

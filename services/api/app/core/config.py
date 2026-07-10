@@ -65,6 +65,11 @@ class Settings(BaseSettings):
         return self.data_dir / "media"
 
     @property
+    def oracle_index_path(self) -> Path:
+        """Where the Track 3 Video-Oracle index lives when built."""
+        return self.data_dir / "oracle" / "index.json"
+
+    @property
     def tasks_path(self) -> Path:
         """Path to the input tasks manifest."""
         return self.input_dir / "tasks.json"

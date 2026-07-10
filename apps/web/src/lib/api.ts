@@ -1,7 +1,7 @@
 /** Typed fetch wrapper over the services/api REST contract. */
 
-import { getApiUrl } from "./store";
-import type { ClipResult, RunStatus, Task } from "./types";
+import { getApiUrl, getFireworksKey } from "./store";
+import type { ClipResult, QAResponse, RunStatus, SearchResponse, Task } from "./types";
 
 export class ApiError extends Error {
   constructor(
@@ -13,9 +13,14 @@ export class ApiError extends Error {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const fireworksKey = getFireworksKey();
   const resp = await fetch(`${getApiUrl()}${path}`, {
     ...init,
-    headers: { "Content-Type": "application/json", ...init?.headers },
+    headers: {
+      "Content-Type": "application/json",
+      ...(fireworksKey ? { "X-Fireworks-Key": fireworksKey } : {}),
+      ...init?.headers,
+    },
   });
   if (!resp.ok) {
     let detail = resp.statusText;
@@ -49,8 +54,8 @@ export const api = {
     }),
 
   search: (query: string) =>
-    request<unknown>("/api/search", { method: "POST", body: JSON.stringify({ query }) }),
+    request<SearchResponse>("/api/search", { method: "POST", body: JSON.stringify({ query }) }),
 
   qa: (question: string) =>
-    request<unknown>("/api/qa", { method: "POST", body: JSON.stringify({ question }) }),
+    request<QAResponse>("/api/qa", { method: "POST", body: JSON.stringify({ question }) }),
 };
