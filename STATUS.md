@@ -91,6 +91,29 @@ Planning is now self-driven through [SPEC.md](SPEC.md) / [PLAN.md](PLAN.md) / [T
 
 ## 🗒️ Log
 
+- 2026-07-10 — Tumo (via Claude) — **Live end-to-end UI testing + synthesis robustness fix.** Brought
+  up the full stack locally (web + API) and ran real pipeline jobs to test the Captioner Hub. Built a
+  **CPU dev image** (`services/captioner/Dockerfile.dev`: `python:3.11-slim` + ffmpeg + faster-whisper
+  int8 + opencv, no ROCm/torch/source-compile, ~1.9 GB) so the pipeline runs on non-AMD dev machines
+  — the ROCm `Dockerfile` stays the submission artifact. Real runs against live Fireworks Kimi-K2P6
+  produced grounded captions across styles, and **transcript grounding is verified** (a clip with
+  dialogue → Whisper transcript → captions weave the spoken line with the visual). Two real content
+  bugs surfaced and are now fixed (tests-first, verified inside the image, 13 synthesis tests green,
+  ruff clean): (1) the reasoning VLM occasionally emits a degenerate `<captionStyle>...</captionStyle>`
+  (bare ellipsis) — seen once as a literal `"..."` caption; (2) worse, when it is truncated
+  (`finish_reason="length"`) before closing the tag, the old parse path dumped the **entire raw
+  chain-of-thought** as the caption. Fix has two layers: (i) `synthesis` rejects punctuation-only/empty
+  captions and untagged truncated/long reasoning leaks; (ii) because the failures are **intermittent**,
+  `generate_caption` now **retries with escalation** (config `OMNICAPTION_SYNTHESIS_MAX_ATTEMPTS`,
+  default 3) — each retry doubles `max_tokens` (recovers truncation/leaks) and adds a little
+  temperature (breaks a repeated degenerate answer) — falling back to the grounded deterministic
+  caption only if all attempts fail. Verified live: a re-run of the same clip that had shown BOTH
+  `"..."` (sarcastic) and an 18,897-char reasoning leak (humorous) recovered **four real captions** —
+  sarcastic on attempt 3, humorous on attempt 2 (logs show the reject → recover). Also confirmed the
+  honest-reporting fix live: an
+  ingestion 403 (bad clip URL) → empty captions → UI shows "completed with errors" with the log, not a
+  false green. **Ops note (dev only):** a fresh web build on a non-3000 port needs that origin in the
+  API's `CORS_ORIGINS`.
 - 2026-07-08 — Tumo (via Claude) — Removed IBM Bob + GitHub Spec-Kit entirely. Deleted `.specify/`
   and the two-layer `specs/` tree; promoted the plan/spec/tasks to root `PLAN.md`/`SPEC.md`/`TASKS.md`
   (reconciled to the real code layout), moved data-model + I/O contract + pipeline-stages into

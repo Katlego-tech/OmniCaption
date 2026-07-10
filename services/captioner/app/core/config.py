@@ -106,6 +106,12 @@ class Settings(BaseSettings):
         description="Maximum tokens generated per caption (reasoning VLMs spend "
         "tokens on thinking before the tagged caption).",
     )
+    synthesis_max_attempts: int = Field(
+        default=3,
+        description="Attempts per style before falling back. Retries escalate "
+        "max_tokens (recovers truncated/leaked reasoning) and add a little "
+        "temperature (breaks the VLM out of a repeated degenerate caption).",
+    )
     # Fusion weights for the hybrid audio/vision evidence blend used in prompting.
     alpha: float = Field(default=0.6, description="Weight for transcript (audio) evidence.")
     beta: float = Field(default=0.4, description="Weight for keyframe (vision) evidence.")
