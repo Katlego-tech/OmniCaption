@@ -3,7 +3,7 @@
 #
 # The base image ships PyTorch built against ROCm/HIP; CTranslate2 and ffmpeg
 # are added on top. Keep the final image <10 GB and cold start <60 s.
-FROM --platform=linux/amd64 rocm/pytorch:latest
+FROM --platform=linux/amd64 rocm/pytorch:latest AS builder
 
 # ---- OS packages --------------------------------------------------------------
 # ffmpeg is required by the ingestion stage for audio extraction.
@@ -60,6 +60,30 @@ ENV HF_HUB_OFFLINE="1"
 
 # ---- Application source -------------------------------------------------------
 COPY app ./app
+
+# ---- Prune heavy ROCm dependencies to meet the ≤10 GB gate -------------------
+# We delete static archives (.a), LLVM build files, and unused heavy libraries
+# (like hipblaslt, rocfft, and migraphx) which are not needed for Whisper or VLM.
+RUN find /opt/rocm -name "*.a" -delete \
+    && rm -rf /opt/rocm/lib/llvm \
+    && rm -rf /opt/rocm/lib/hipblaslt \
+    && rm -rf /opt/rocm/lib/rocfft \
+    && rm -rf /opt/rocm/lib/migraphx \
+    && rm -rf /opt/rocm/lib/librocalution_hip.so* \
+    && rm -rf /opt/rocm/lib/librpp.so* \
+    && rm -rf /root/.cache/*
+
+# ---- Squashed final stage ----------------------------------------------------
+FROM scratch
+COPY --from=builder / /
+
+WORKDIR /app
+ENV PATH="/opt/venv/bin:/opt/rocm/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
+    LD_LIBRARY_PATH="/usr/local/lib:/opt/rocm/lib" \
+    PYTORCH_ROCM_ARCH="gfx942;gfx1100;gfx1032;gfx1103;gfx1150" \
+    HF_HOME="/opt/hf-cache" \
+    HF_HUB_OFFLINE="1" \
+    PYTHONUNBUFFERED="1"
 
 # The eval harness mounts /input and /output at runtime. The synthesis stage
 # additionally needs FIREWORKS_API_KEY passed at `docker run -e ...`; without
