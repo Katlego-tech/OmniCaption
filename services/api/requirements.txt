@@ -1,0 +1,9 @@
+# Runtime dependencies for the OmniCaption backend API (services/api).
+# Deliberately lightweight: this service never loads models — it brokers between
+# the frontend and the captioner pipeline's file contract.
+
+fastapi>=0.111
+uvicorn[standard]>=0.30
+httpx>=0.27
+pydantic>=2.7
+pydantic-settings>=2.2
