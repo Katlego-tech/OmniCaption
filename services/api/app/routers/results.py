@@ -9,7 +9,7 @@ import tempfile
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 
 from app.core.config import Settings
-from app.core.deps import get_settings
+from app.core.deps import get_settings, require_user
 
 router = APIRouter()
 
@@ -53,7 +53,10 @@ def result_for_task(task_id: str, settings: Settings = Depends(get_settings)) ->
 
 
 @router.delete("")
-def clear_results(settings: Settings = Depends(get_settings)) -> Response:
+def clear_results(
+    settings: Settings = Depends(get_settings),
+    _user: dict = Depends(require_user),
+) -> Response:
     """Delete all generated captions (no-op if none exist)."""
     if settings.results_path.is_file():
         _write_results(settings, [])
@@ -61,7 +64,11 @@ def clear_results(settings: Settings = Depends(get_settings)) -> Response:
 
 
 @router.delete("/{task_id}")
-def delete_result(task_id: str, settings: Settings = Depends(get_settings)) -> Response:
+def delete_result(
+    task_id: str,
+    settings: Settings = Depends(get_settings),
+    _user: dict = Depends(require_user),
+) -> Response:
     """Delete one clip's captions by task_id; 404 if absent."""
     results = _read_results(settings)
     remaining = [clip for clip in results if clip.get("task_id") != task_id]

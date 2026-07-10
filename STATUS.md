@@ -253,3 +253,19 @@ Planning is now self-driven through [SPEC.md](SPEC.md) / [PLAN.md](PLAN.md) / [T
   result delete (one/all/404) all behaved correctly. Note: existing task/result/run endpoints
   stay unauthenticated (parity with prior behavior); gating mutations behind the token is a
   possible follow-up.
+- 2026-07-10 — Tumo (via Claude) — **Security hardening** (self red-team of the auth work, then
+  fixed the High+ findings; tests-first). (1) **No more known-default signing key** — an unset
+  `AUTH_SECRET` now auto-generates a random 256-bit secret persisted at
+  `<DATA_DIR>/auth_secret.key` (gitignored) instead of the old public `dev-insecure-change-me`;
+  a token forged with that old default is rejected. (2) **Mutations now require a token** —
+  `require_user` gates `POST /api/tasks`, `DELETE /api/tasks[/{id}]`, `POST /api/tasks/run`, and
+  `DELETE /api/results[/{id}]` (reads stay open); moved the dependency into `core/deps.py`.
+  (3) **SSRF guard** — `video_url` must be http(s) to a non-internal host (blocks
+  169.254.169.254, loopback/private/link-local/reserved IPs, `localhost`/metadata hostnames);
+  `task_id` restricted to `[A-Za-z0-9_-]{1,64}` (it becomes a downstream path). Plus PBKDF2
+  120k → **600k** (OWASP floor) and a constant-time dummy-hash for unknown-user login (kills the
+  enumeration timing side-channel). api suite 54 → **77** (venv) / 74 + skip (CI interpreter),
+  ruff clean. **Live-smoked**: unauth mutations → 401, SSRF/bad-URL + bad task_id → 422, forged
+  old-default token → 401, valid authed submit → 201. **Residual (documented, not fixed):** no
+  rate limiting, signup 409 still enumerates emails, token in localStorage (XSS), no server-side
+  token revocation, no email verification, DNS-rebinding bypass of the URL check.

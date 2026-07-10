@@ -15,14 +15,21 @@ import binascii
 import hashlib
 import hmac
 import json
+import logging
 import os
 import sqlite3
 import time
 
 from app.core.config import Settings
 
-_PBKDF2_ITERATIONS = 120_000
+logger = logging.getLogger(__name__)
+
+# OWASP 2023 floor for PBKDF2-HMAC-SHA256.
+_PBKDF2_ITERATIONS = 600_000
 _SALT_BYTES = 16
+# A fixed salt used only to burn a comparable amount of time for unknown users,
+# so login latency does not reveal whether an email is registered.
+_DUMMY_SALT = b"\x00" * _SALT_BYTES
 
 
 class AuthError(Exception):
@@ -46,7 +53,7 @@ class AuthService:
     """User accounts + token issuance/verification for one API instance."""
 
     def __init__(self, settings: Settings) -> None:
-        self._secret = settings.auth_secret.encode("utf-8")
+        self._secret = _resolve_secret(settings)
         self._ttl_s = settings.token_ttl_hours * 3600
         self._db_path = settings.auth_db_path
         self._db_path.parent.mkdir(parents=True, exist_ok=True)
@@ -86,13 +93,18 @@ class AuthService:
             raise AuthError("email already registered") from exc
 
     def verify_credentials(self, email: str, password: str) -> int:
-        """Return the user id for valid credentials; raise AuthError otherwise."""
+        """Return the user id for valid credentials; raise AuthError otherwise.
+
+        Runs the password KDF even when the email is unknown, so response time
+        does not reveal which emails are registered (timing enumeration).
+        """
         email = email.strip().lower()
         with self._connect() as conn:
             row = conn.execute(
                 "SELECT id, salt, pw_hash FROM users WHERE email = ?", (email,)
             ).fetchone()
         if row is None:
+            _hash_password(password, _DUMMY_SALT)  # equalize timing, then fail
             raise AuthError("invalid credentials")
         user_id, salt, pw_hash = row
         candidate = _hash_password(password, salt)
@@ -142,3 +154,34 @@ class AuthService:
 def _random_salt() -> bytes:
     # os.urandom is thread-safe and CSPRNG-backed.
     return os.urandom(_SALT_BYTES)
+
+
+def _resolve_secret(settings: Settings) -> bytes:
+    """The token-signing key.
+
+    Priority: an explicit ``AUTH_SECRET`` (production / multi-instance), else a
+    random 256-bit secret generated once and persisted under DATA_DIR. This
+    guarantees the signing key is never the source's well-known default, so
+    tokens cannot be forged from the public code.
+    """
+    explicit = settings.auth_secret.strip()
+    if explicit:
+        return explicit.encode("utf-8")
+
+    key_path = settings.data_dir / "auth_secret.key"
+    if key_path.is_file():
+        return key_path.read_bytes()
+
+    secret = os.urandom(32)
+    key_path.parent.mkdir(parents=True, exist_ok=True)
+    key_path.write_bytes(secret)
+    try:
+        os.chmod(key_path, 0o600)
+    except OSError:  # pragma: no cover - non-POSIX perms are best-effort
+        pass
+    logger.warning(
+        "AUTH_SECRET not set; generated a random signing key at %s. "
+        "Set AUTH_SECRET explicitly for multi-instance deployments.",
+        key_path,
+    )
+    return secret

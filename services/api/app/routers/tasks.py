@@ -10,7 +10,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 
 from app.core.config import Settings
-from app.core.deps import get_runner, get_settings
+from app.core.deps import get_runner, get_settings, require_user
 from app.core.runner import PipelineRunner
 from app.schemas import TaskIn
 
@@ -46,6 +46,7 @@ def list_tasks(settings: Settings = Depends(get_settings)) -> list[dict]:
 def submit_tasks(
     body: list[TaskIn] | TaskIn,
     settings: Settings = Depends(get_settings),
+    _user: dict = Depends(require_user),
 ) -> list[dict]:
     """Validate task(s) and merge them into the manifest (same task_id replaces)."""
     submitted = [body] if isinstance(body, TaskIn) else body
@@ -61,14 +62,21 @@ def submit_tasks(
 
 
 @router.delete("")
-def clear_tasks(settings: Settings = Depends(get_settings)) -> Response:
+def clear_tasks(
+    settings: Settings = Depends(get_settings),
+    _user: dict = Depends(require_user),
+) -> Response:
     """Remove every task from the manifest."""
     _write_manifest_atomically(settings.tasks_path, [])
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.delete("/{task_id}")
-def delete_task(task_id: str, settings: Settings = Depends(get_settings)) -> Response:
+def delete_task(
+    task_id: str,
+    settings: Settings = Depends(get_settings),
+    _user: dict = Depends(require_user),
+) -> Response:
     """Remove one task by id; 404 if it is not in the manifest."""
     manifest = _read_manifest(settings.tasks_path)
     remaining = [task for task in manifest if task.get("task_id") != task_id]
@@ -85,6 +93,7 @@ def delete_task(task_id: str, settings: Settings = Depends(get_settings)) -> Res
 def trigger_run(
     settings: Settings = Depends(get_settings),
     runner: PipelineRunner = Depends(get_runner),
+    _user: dict = Depends(require_user),
 ) -> dict:
     """Launch the pipeline; 409 while a run is already in flight."""
     settings.input_dir.mkdir(parents=True, exist_ok=True)
