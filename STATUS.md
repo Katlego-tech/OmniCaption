@@ -208,3 +208,10 @@ Planning is now self-driven through [SPEC.md](SPEC.md) / [PLAN.md](PLAN.md) / [T
   (checkout@v5, setup-python@v6) to clear the Node 20 deprecation warnings. Suites: captioner
   53/53 (+4), oracle 14/14 (+5), api 30/30, ruff clean. Cross-space score merge is uncalibrated
   (MVP) — noted in the search docstring.
+- 2026-07-10 — Tumo (via Claude) — Branch hygiene (Tumo-approved): verified Katlego's three
+  remaining branches (`feat/fireworks-integration`, `feat/polish-amd-container-v2`,
+  `feat/web-frontend`) were each **0 commits ahead of main** (fully landed via PRs #1, #7/#8,
+  and #9) and deleted them — no work lost, merge history preserved on main. The remote now has
+  a single branch: `main`, green on all four CI lanes, tagged v1.0.0. Remaining before
+  submission (non-code): Katlego records the image's public registry URL in docs/06; team
+  submits by Saturday 6PM.
