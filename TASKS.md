@@ -197,18 +197,18 @@ Each user-story phase is ordered **Tests FIRST (must FAIL) → Implementation �
 
 ### Tests FIRST (ensure they FAIL)
 
-- [ ] T086 [P] [US7] `tests/stretch/test_index.py`: multimodal vector index builds over frames/transcripts (AC7.1).
-- [ ] T087 [P] [US7] `tests/stretch/test_search.py`: NL query returns similarity-ranked clips/moments (AC7.2).
-- [ ] T088 [US7] `tests/stretch/test_rag_answer.py`: question yields grounded RAG answer citing moments (AC7.3).
+- [x] T086 [P] [US7] `tests/stretch/test_index.py`: multimodal vector index builds over frames/transcripts (AC7.1). — in `services/oracle/tests/stretch/`; text modality (captions + transcript segments), Fireworks mocked.
+- [x] T087 [P] [US7] `tests/stretch/test_search.py`: NL query returns similarity-ranked clips/moments (AC7.2).
+- [x] T088 [US7] `tests/stretch/test_rag_answer.py`: question yields grounded RAG answer citing moments (AC7.3). — includes the empty-index honesty path (model never called with zero evidence).
 
 ### Implementation
 
-- [ ] T089 [US7] Scaffold `services/oracle/` separate from the Track 2 image (must not regress its budgets — AC7.4).
-- [ ] T090 [P] [US7] Implement CLIP/USM embedding extraction over keyframes + transcript segments.
-- [ ] T091 [P] [US7] Build the multimodal vector index + persistence.
-- [ ] T092 [US7] Implement semantic search (query embedding → top-k moments).
-- [ ] T093 [US7] Serve Gemma 4 31B via vLLM-ROCm; implement RAG QA over retrieved moments.
-- [ ] T094 [US7] Wire an Oracle CLI/entrypoint; gate behind a fully-green Track 2.
+- [x] T089 [US7] Scaffold `services/oracle/` separate from the Track 2 image (must not regress its budgets — AC7.4). — pure-Python, 2 runtime deps, no model weights.
+- [x] T090 [P] [US7] Implement CLIP/USM embedding extraction over keyframes + transcript segments. — **text modality shipped** (Fireworks embeddings over captions/transcripts, per the 2026-07-09 Fireworks plan change); CLIP visual embeddings over keyframes remain documented future work.
+- [x] T091 [P] [US7] Build the multimodal vector index + persistence. — `MomentIndex` + JSON persistence.
+- [x] T092 [US7] Implement semantic search (query embedding → top-k moments). — cosine top-k, served at `/api/search`.
+- [x] T093 [US7] Serve Gemma 4 31B via vLLM-ROCm; implement RAG QA over retrieved moments. — **superseded by the 2026-07-09 plan change**: QA runs on Fireworks Kimi-K2P6 (MI300X) with grounded [task_id @ t] citations, served at `/api/qa`.
+- [x] T094 [US7] Wire an Oracle CLI/entrypoint; gate behind a fully-green Track 2. — `python -m oracle.cli build|search|ask`; landed after Track 2 was green + tagged v1.0.0.
 
 **Checkpoint:** semantic search + grounded QA work on a small corpus without touching the Track 2 image budgets.
 

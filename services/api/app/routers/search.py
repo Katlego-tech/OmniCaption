@@ -1,18 +1,29 @@
-"""/api/search — Track 3 Video-Oracle semantic search (stub; contract pinned)."""
+"""/api/search — Track 3 Video-Oracle semantic search.
+
+Serves the oracle index when it exists; otherwise answers the 501 stub the
+frontend renders as an honest "not built yet" state.
+"""
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, Request
 
+from app.core.config import Settings
+from app.core.deps import get_settings
+from app.routers.oracle_bridge import get_embedder, hit_to_dict, load_index
 from app.schemas import SearchRequest
 
 router = APIRouter()
 
 
 @router.post("")
-def search(body: SearchRequest) -> dict:
-    """Semantic moment search. 501 until the Track 3 index (T086-T094) is built."""
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="Track 3 Video-Oracle search is not implemented yet (see TASKS.md T086-T092).",
-    )
+def search(
+    body: SearchRequest,
+    request: Request,
+    settings: Settings = Depends(get_settings),
+) -> dict:
+    """Similarity-ranked moments for a natural-language query (AC7.2)."""
+    index = load_index(settings)
+    embedder = get_embedder(request)
+    hits = index.search(body.query, embedder, top_k=body.top_k)
+    return {"query": body.query, "hits": [hit_to_dict(hit) for hit in hits]}

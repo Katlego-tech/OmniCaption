@@ -3,3 +3,7 @@
 
 pytest>=8.0
 ruff>=0.5
+
+# Optional Track 3 oracle, installed for the wired-path tests (they importorskip
+# gracefully where it is absent, e.g. the pre-push hook's bare environment).
+-e ../oracle

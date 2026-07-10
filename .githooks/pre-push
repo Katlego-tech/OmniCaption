@@ -45,7 +45,23 @@ if [ -d "$captioner" ]; then
   fi
 fi
 
-# --- 3. Backend API Python tests ---------------------------------------------
+# --- 3. Oracle Python tests (Track 3) -----------------------------------------
+oracle="$root/services/oracle"
+if [ -d "$oracle" ]; then
+  if python -c "import pytest, httpx, pydantic" >/dev/null 2>&1; then
+    echo "→ pytest (services/oracle)"
+    ( cd "$oracle" && python -m pytest -q ) || fail=1
+  else
+    echo "⏭️  oracle test deps not importable locally — skipping (CI still runs it)."
+  fi
+
+  if command -v ruff >/dev/null 2>&1; then
+    echo "→ ruff check (services/oracle)"
+    ( cd "$oracle" && ruff check . ) || fail=1
+  fi
+fi
+
+# --- 4. Backend API Python tests ---------------------------------------------
 api="$root/services/api"
 if [ -d "$api" ]; then
   if python -c "import pytest, fastapi" >/dev/null 2>&1; then

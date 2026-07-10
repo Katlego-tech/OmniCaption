@@ -4,10 +4,12 @@ import { useState } from "react";
 
 import { Badge, Button, Card, Input, KineticLoader } from "@/components/ui";
 import { api, ApiError } from "@/lib/api";
+import type { SearchHit } from "@/lib/types";
 
 interface Message {
   role: "user" | "oracle";
   text: string;
+  citations?: SearchHit[];
 }
 
 export default function OraclePage() {
@@ -22,18 +24,21 @@ export default function OraclePage() {
     setInput("");
     setBusy(true);
     try {
-      await api.qa(question);
-      // Track 3 not built: the 501 branch below is today's real path.
-      setBusy(false);
+      const response = await api.qa(question);
+      setMessages((m) => [
+        ...m,
+        { role: "oracle", text: response.answer, citations: response.citations },
+      ]);
     } catch (err) {
-      setBusy(false);
       const text =
         err instanceof ApiError && err.status === 501
-          ? "I can't answer that yet — the Video-Oracle RAG index (Track 3, tasks T093–T094) hasn't been built. This chat is wired to the pinned /api/qa contract and will answer with grounded, moment-cited responses once the index ships."
+          ? `The Video-Oracle index has not been built yet — the backend said: "${err.message}". Build it with the oracle CLI (services/oracle) and I will answer with grounded, moment-cited responses.`
           : err instanceof Error
             ? `Backend error: ${err.message}`
             : "Backend unreachable.";
       setMessages((m) => [...m, { role: "oracle", text }]);
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -51,8 +56,8 @@ export default function OraclePage() {
         {messages.length === 0 && (
           <Card>
             <p className="text-sm text-muted">
-              Try: “What happens at the start of v1?” — and expect an honest answer about what is
-              and is not built yet.
+              Try: “What happens at the start of v1?” — answers are grounded strictly in indexed
+              moments, cited as [task_id @ t].
             </p>
           </Card>
         )}
@@ -62,10 +67,22 @@ export default function OraclePage() {
             className={
               message.role === "user"
                 ? "ml-auto max-w-[80%] rounded-xl rounded-br-sm bg-primary/15 px-4 py-3 text-sm"
-                : "mr-auto max-w-[80%] rounded-xl rounded-bl-sm border border-border bg-card px-4 py-3 text-sm text-muted"
+                : "mr-auto max-w-[80%] rounded-xl rounded-bl-sm border border-border bg-card px-4 py-3 text-sm"
             }
           >
-            {message.text}
+            <p className={message.role === "oracle" ? "text-foreground/90" : undefined}>
+              {message.text}
+            </p>
+            {message.citations && message.citations.length > 0 && (
+              <div className="mt-3 space-y-1 border-t border-border/60 pt-2">
+                {message.citations.map((hit, j) => (
+                  <p key={j} className="text-xs text-faint">
+                    <span className="font-mono text-primary-soft">{hit.task_id}</span>
+                    {hit.t_start !== null && ` @ ${hit.t_start.toFixed(1)}s`} — {hit.text}
+                  </p>
+                ))}
+              </div>
+            )}
           </div>
         ))}
         {busy && <KineticLoader label="thinking…" />}
@@ -76,7 +93,7 @@ export default function OraclePage() {
           placeholder="Ask the Oracle…"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && ask()}
+          onKeyDown={(e) => e.key === "Enter" && !busy && ask()}
         />
         <Button onClick={ask} disabled={!input.trim() || busy}>
           Send
