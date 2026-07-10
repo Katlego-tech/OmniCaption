@@ -29,3 +29,19 @@ def settings(tmp_path: Path) -> Settings:
 def client(settings: Settings) -> TestClient:
     """TestClient against an app built from the isolated settings."""
     return TestClient(create_app(settings))
+
+
+SIGNUP_CREDS = {"email": "tester@example.com", "password": "password-123"}
+
+
+def authorize(client: TestClient) -> TestClient:
+    """Sign up a throwaway user and attach its bearer token to the client."""
+    token = client.post("/api/auth/signup", json=SIGNUP_CREDS).json()["token"]
+    client.headers.update({"Authorization": f"Bearer {token}"})
+    return client
+
+
+@pytest.fixture()
+def auth_client(client: TestClient) -> TestClient:
+    """An authenticated TestClient (a valid bearer token is pre-attached)."""
+    return authorize(client)

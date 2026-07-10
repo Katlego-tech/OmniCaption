@@ -1,4 +1,7 @@
-"""/api/tasks — CRUD over the tasks.json manifest (the captioner input contract)."""
+"""/api/tasks — CRUD over the tasks.json manifest (the captioner input contract).
+
+Mutations require a bearer token (see conftest.auth_client); reads are open.
+"""
 
 from __future__ import annotations
 
@@ -19,47 +22,52 @@ def test_list_tasks_empty_when_no_manifest(client: TestClient) -> None:
     assert resp.json() == []
 
 
-def test_submit_task_persists_to_manifest(client: TestClient, settings) -> None:
-    resp = client.post("/api/tasks", json=[VALID_TASK])
+def test_submit_task_persists_to_manifest(auth_client: TestClient, settings) -> None:
+    resp = auth_client.post("/api/tasks", json=[VALID_TASK])
     assert resp.status_code == 201
     assert resp.json() == [VALID_TASK]
 
     on_disk = json.loads(settings.tasks_path.read_text(encoding="utf-8"))
     assert on_disk == [VALID_TASK]
 
-    listed = client.get("/api/tasks")
+    listed = auth_client.get("/api/tasks")
     assert listed.json() == [VALID_TASK]
 
 
-def test_submit_accepts_single_object_too(client: TestClient) -> None:
-    resp = client.post("/api/tasks", json=VALID_TASK)
+def test_submit_accepts_single_object_too(auth_client: TestClient) -> None:
+    resp = auth_client.post("/api/tasks", json=VALID_TASK)
     assert resp.status_code == 201
     assert resp.json() == [VALID_TASK]
 
 
-def test_unknown_styles_are_dropped(client: TestClient) -> None:
+def test_unknown_styles_are_dropped(auth_client: TestClient) -> None:
     task = {**VALID_TASK, "styles": ["formal", "shakespearean"]}
-    resp = client.post("/api/tasks", json=[task])
+    resp = auth_client.post("/api/tasks", json=[task])
     assert resp.status_code == 201
     assert resp.json()[0]["styles"] == ["formal"]
 
 
-def test_task_with_no_valid_style_is_rejected(client: TestClient) -> None:
+def test_task_with_no_valid_style_is_rejected(auth_client: TestClient) -> None:
     task = {**VALID_TASK, "styles": ["shakespearean"]}
-    resp = client.post("/api/tasks", json=[task])
+    resp = auth_client.post("/api/tasks", json=[task])
     assert resp.status_code == 422
 
 
-def test_resubmitting_a_task_id_replaces_it(client: TestClient) -> None:
-    client.post("/api/tasks", json=[VALID_TASK])
+def test_resubmitting_a_task_id_replaces_it(auth_client: TestClient) -> None:
+    auth_client.post("/api/tasks", json=[VALID_TASK])
     updated = {**VALID_TASK, "styles": ["humorous_tech"]}
-    resp = client.post("/api/tasks", json=[updated])
+    resp = auth_client.post("/api/tasks", json=[updated])
     assert resp.status_code == 201
 
-    listed = client.get("/api/tasks").json()
+    listed = auth_client.get("/api/tasks").json()
     assert listed == [updated]
 
 
-def test_malformed_body_fails_fast(client: TestClient) -> None:
-    resp = client.post("/api/tasks", json={"nope": True})
+def test_malformed_body_fails_fast(auth_client: TestClient) -> None:
+    resp = auth_client.post("/api/tasks", json={"nope": True})
     assert resp.status_code == 422
+
+
+def test_submit_without_token_is_401(client: TestClient) -> None:
+    resp = client.post("/api/tasks", json=[VALID_TASK])
+    assert resp.status_code == 401

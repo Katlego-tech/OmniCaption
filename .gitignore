@@ -33,8 +33,9 @@ tmp/
 *.mkv
 keyframes/
 
-# --- Runtime data (SQLite user store, local API data dir) --------------------
+# --- Runtime data (SQLite user store, generated signing key, local API data) -
 *.db
+auth_secret.key
 services/api/data/
 
 # --- IBM Bob / Spec-Kit generated shadow state (created by `specify init` / Bob) --

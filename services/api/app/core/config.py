@@ -44,8 +44,10 @@ class Settings(BaseSettings):
         description="Fireworks AI base URL probed by /api/keys/validate.",
     )
     auth_secret: str = Field(
-        default="dev-insecure-change-me",
-        description="HMAC signing secret for auth tokens. MUST be overridden in production.",
+        default="",
+        description="HMAC signing secret for auth tokens. When empty, a random secret is "
+        "generated and persisted under DATA_DIR — set this explicitly for multi-instance "
+        "deployments so every instance signs with the same key.",
     )
     token_ttl_hours: int = Field(
         default=24 * 7,
