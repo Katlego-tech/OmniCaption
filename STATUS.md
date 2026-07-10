@@ -1,6 +1,6 @@
 # OmniCaption — STATUS
 
-_Last updated: 2026-07-10 — by Katlego (via Claude)_
+_Last updated: 2026-07-10 — by Tumo (via Claude)_
 
 > Read this first, then [AGENTS.md](AGENTS.md). Update this file after **every** step.
 > Shared state lives in three files only: AGENTS.md (rules), this board, and
@@ -21,17 +21,20 @@ Planning is now self-driven through [SPEC.md](SPEC.md) / [PLAN.md](PLAN.md) / [T
 | Vision (keyframes) | Katlego | Gemini | ✅ completed |
 | Synthesis (Gemma 4 VLM) + styles | Katlego | Gemini | ✅ completed |
 | Container + budgets | Katlego | Gemini | ✅ completed |
-| Polish: submission checklist + smoke/doc drift (T097, T100) | Tumo | Claude | 🔄 PR open |
-| Polish: golden-clip regression tests (T096) | Tumo | Claude | 🔄 PR open |
-| Polish: planning-doc reconciliation (T101 part 1) | Tumo | Claude | 🔄 PR open |
+| Polish: submission checklist + smoke/doc drift (T097, T100) | Tumo | Claude | ✅ merged (via #7/#8) |
+| Polish: golden-clip regression tests (T096) | Tumo | Claude | ✅ merged (via #7/#8) |
+| Polish: planning-doc reconciliation (T101 part 1) | Tumo | Claude | ✅ merged (via #7/#8) |
 | Polish: AMD proof + image push (T095, T099) | Katlego | Gemini | ✅ completed |
 | Web frontend architecture (Track 3 stretch) | Katlego | Claude | 🔄 plan drafted |
-| Web frontend backend API (`services/api/`) | Tumo | Claude | ⏳ handover pending |
+| Web frontend backend API (`services/api/`) | Tumo | Claude | 🔄 PR open |
 
 ## ⏭️ Next action
 
-1. **Tumo:** Review `docs/18-frontend-architecture.md` on `feat/web-frontend` branch. Scaffold `services/api/` FastAPI backend with the defined API contract.
-2. **Katlego:** Once Tumo's backend lands, generate frontend pages via local Ollama (qwen3:14b) and wire up VengeanceUI components.
+1. **Katlego:** Tumo's backend (`services/api/`) is scaffolded on `feat/api-backend` — review/merge the
+   PR, then generate frontend pages via local Ollama (qwen3:14b) and wire up VengeanceUI components
+   against the API contract (see `services/api/README.md` for the live endpoint table).
+2. **Katlego:** Close stale PRs #3, #4, #5, #6 — their content was fully absorbed into `main` by the
+   #7/#8 merges (each now has an empty diff vs `main`); the branches can be deleted.
 3. **Katlego & Tumo:** T101, T102 — Final release sweep: merge branch to main, tag release, and verify CI green.
 
 ## 🗓️ Timeline (to Saturday July 11 — 6PM)
@@ -140,3 +143,15 @@ Planning is now self-driven through [SPEC.md](SPEC.md) / [PLAN.md](PLAN.md) / [T
 - 2026-07-10 — Katlego (via Gemini) — T095, T099: Successfully merged Tumo's latest PR branch containing Whisper cache prep, environment config fixes, and timing improvements. Resolved conflicts in STATUS.md, Dockerfile, requirements.txt, and loader.py. Discovered and fixed a CPU fallback issue in load_whisper where MKL-less compilation lacked an x86 int8 SGEMM backend (implemented dynamic compute fallback using ctranslate2.get_supported_compute_types). Confirmed container local CPU smoke test runs successfully and writes schema-valid output on partial fallback. Marked T095/T099 complete.
 - 2026-07-10 — Katlego (via Claude) — T096 image gate: Squashed Docker image with ROCm pruning (static archives, LLVM, hipblaslt, rocfft, migraphx, librocalution_hip, librpp). Final size 9.58 GB (under 10 GB gate). Verified all core imports pass (torch, ctranslate2, faster_whisper, cv2). Pushed to feat/polish-amd-container-v2.
 - 2026-07-10 — Katlego (via Claude) — Web frontend architecture: Designed full frontend plan using Next.js 15, shadcn/ui + VengeanceUI animated components, Tailwind CSS. 7 pages (Landing, Dashboard, Captioner Hub, Search, Oracle Chat, Accounts/API Keys, Docs). Decoupled deployment: static Next.js export + standalone FastAPI backend. API key management via localStorage. Plan committed to `docs/18-frontend-architecture.md` on `feat/web-frontend` branch. Handover to Tumo for backend API scaffolding.
+- 2026-07-10 — Tumo (via Claude) — Synced with main after the #7/#8 merges; PRs #3–#6 are now
+  empty vs main and should be closed (flagged for Katlego — branch cleanup too). Accepted the
+  web-frontend handover: scaffolded `services/api/` per docs/18 §4 (tests FIRST: 27-test contract
+  suite red on missing package, then green). FastAPI + CORS, endpoints: tasks CRUD over the
+  captioner `tasks.json` contract (unknown styles dropped, same-id replace, atomic writes),
+  single-slot pipeline runner (`POST /api/tasks/run` → 202/409 + status polling), results
+  read-through (`/api/results[/{task_id}]`), traversal-safe `/api/media/{file}`, Fireworks key
+  validation (`/api/keys/validate` → upstream probe, 502 on unreachable), and 501-pinned Track 3
+  stubs for `/api/search` + `/api/qa`. Standalone deploy: no captioner import, slim Dockerfile,
+  env contract per docs/18 §6 (`CORS_ORIGINS`/`DATA_DIR`/`CAPTIONER_IMAGE`/`CAPTIONER_CMD`).
+  Extended CI + pre-push gates with an `api` lane. Verified with the gate's own interpreter:
+  api 27/27 green, captioner 49 green + 1 gated skip, ruff check + format clean on both.
