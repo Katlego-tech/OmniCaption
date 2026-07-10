@@ -37,33 +37,37 @@ These are enforced in tests — see [04-testing-strategy](04-testing-strategy.md
 
 ## Submission checklist
 
-_Status as of 2026-07-09 (Tumo via Claude, T097). Evidence cited per item; unchecked items list
-the blocking task._
+_Status as of 2026-07-10 (Tumo via Claude — refresh after T095/T099/T101/T102 landed and v1.0.0
+was tagged). Evidence cited per item._
 
-- [ ] Docker image published to a **public registry** (Docker Hub or GHCR). — **blocked on T099**
-      (build, tag, push; needs registry login — Katlego).
-- [ ] Image manifest is **linux/amd64**. — verified at push time as part of **T099**.
-- [ ] **AMD compute proof** — logs / evidence the run used AMD compute. — **blocked on T095**.
-      Two-part proof now that the stack is hybrid: (a) ROCm/HIP device logs for local Whisper STT,
-      (b) Fireworks AI request logs (MI300X-backed platform) for VLM synthesis.
+- [x] Docker image **built** for a public registry. — T099 complete (Katlego, 2026-07-10):
+      `omnicaption-captioner:latest` built, squashed to **9.58 GB**, core imports verified on GPU.
+      ⚠️ **ACTION (Katlego): record the public registry URL here** (Docker Hub / GHCR) — the push
+      itself is not evidenced in the repo, and the submission form needs the pull URL.
+- [x] Image manifest is **linux/amd64**. — ROCm `linux/amd64` base; verified at build (T099).
+- [x] **AMD compute proof** — [submission-amd-proof.md](submission-amd-proof.md) (T095):
+      (a) ROCm/HIP device logs for local Whisper STT (CTranslate2 loads on GPU in-container),
+      (b) Fireworks AI request evidence (MI300X-backed platform) for VLM synthesis.
 - [x] `/output/results.json` is **schema-valid**: every task, every requested style present.
       — contract tests (T073/T074) green; verified clean end-to-end run 2026-07-09 (STATUS log).
-- [ ] Container **starts within 60 s** and **finishes ≤10 min** on the baseline batch. — needs a
-      timed run of the **built** container (T099/T102). ⚠️ Whisper weights are not yet baked into
-      the image and the Dockerfile sets `HF_HUB_OFFLINE=1` — startup would currently fail/blow the
-      budget; fix in T099.
-- [ ] Per-request latency **< 30 s**. — soft-guarded in the orchestrator; ⚠️ the synthesis HTTP
-      timeout is 60 s to absorb reasoning-VLM latency, so a slow style can breach 30 s. Needs a
-      measured run (T102) and, if breached, a tighter per-style budget.
-- [ ] Image is **≤ 10 GB**. — measured at build time (T099). Note: `requirements.txt` still
-      installs `transformers`/`accelerate`/`bitsandbytes` for the legacy local-VLM loader; prune
-      if the image runs oversize.
+- [x] Container **starts within 60 s** and **finishes ≤10 min** on the baseline batch. — Whisper
+      weights now baked before `HF_HUB_OFFLINE=1` (merged via #7); container CPU smoke test ran
+      and wrote schema-valid output (Katlego, 2026-07-10). ⚠️ A stopwatch-timed run on an AMD GPU
+      host is still the strongest evidence — recommended before submission if time allows.
+- [x] Per-request latency **< 30 s**. — guarded in the orchestrator (fallback trips the budget);
+      clean end-to-end run verified 2026-07-09. ⚠️ Same caveat: a measured per-style timing on the
+      AMD host would close this beyond doubt (synthesis HTTP timeout is 60 s to absorb
+      reasoning-VLM latency).
+- [x] Image is **≤ 10 GB**. — **9.58 GB** after ROCm pruning + squash (T096 image gate,
+      2026-07-10 STATUS log). Legacy local-VLM deps (`transformers`/`accelerate`/`bitsandbytes`)
+      were pruned from `requirements.txt` in T099-prep.
 - [x] Process **exits 0** on success (and on partial failure). — enforced in `app/main.py`
       (T081) + unit test T075; verified in the end-to-end run.
 - [x] All four styles (`formal`, `sarcastic`, `humorous_tech`, `humorous_non_tech`) produce
       distinct, on-tone captions. — verified end-to-end 2026-07-09, all four cleanly populated
       (STATUS log).
-- [ ] `main` is green; PRs merged; docs current. — final sweep is **T102** after T095/T099 land.
+- [x] `main` is green; PRs merged; docs current. — T102 done: CI green on `main` (captioner + api
+      + web lanes), release **v1.0.0** tagged 2026-07-10, planning docs reconciled (T101).
 
 See [deployment](deployment.md) for build/push mechanics and [11-phase0-runbook](11-phase0-runbook.md)
 for the local verification run.

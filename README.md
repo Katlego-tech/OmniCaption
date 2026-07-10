@@ -47,9 +47,9 @@ files below, and planning is driven directly by the team — see
 │ 4. Vision      OpenCV scene-change keyframes               │
 │                aligned to transcript timestamps            │
 ├───────────────────────────────────────────────────────────┤
-│ 5. Synthesis   Gemma 4 E4B (4-bit) VLM                     │
+│ 5. Synthesis   Kimi-K2P6 VLM via Fireworks AI (MI300X)     │
 │                images → transcript → style prompt          │
-│                (PMP metacognitive chain for sarcasm)       │
+│                (single-shot styles; XML-tag output)        │
 ├───────────────────────────────────────────────────────────┤
 │ 6. Output      validate schema → /output/results.json → 0  │
 └───────────────────────────────────────────────────────────┘
@@ -65,9 +65,10 @@ OmniCaption/
 ├── README.md · AGENTS.md · CLAUDE.md · GEMINI.md   shared-state entry points
 ├── STATUS.md · STATUS.template.md                  the live board
 ├── SPEC.md · PLAN.md · TASKS.md                    the planning documents
-├── docs/                     00–17 numbered planning docs + deployment
+├── docs/                     00–18 numbered planning docs + deployment
 ├── services/captioner/       the Python captioning pipeline + Dockerfile
-└── apps/web/  (stretch)      Track 3 Video-Oracle demo
+├── services/api/             the FastAPI bridge between the web frontend and the pipeline
+└── apps/web/                 the Next.js web frontend (static export)
 ```
 
 Full detail in [docs/12-project-structure.md](docs/12-project-structure.md).
@@ -90,6 +91,12 @@ cat out/results.json
 ```
 
 More in [docs/11-phase0-runbook.md](docs/11-phase0-runbook.md).
+
+```bash
+# Web stack (optional): FastAPI bridge + Next.js frontend
+cd services/api && pip install -r requirements.txt && uvicorn app.main:app --port 8000 &
+npm install && npm run web        # http://localhost:3000
+```
 
 ## Four golden rules
 
