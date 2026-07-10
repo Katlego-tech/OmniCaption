@@ -91,6 +91,16 @@ Planning is now self-driven through [SPEC.md](SPEC.md) / [PLAN.md](PLAN.md) / [T
 
 ## 🗒️ Log
 
+- 2026-07-11 — Tumo (via Claude) — **Oracle QA reasoning-leak fix** (tests-first). Built the Track 3
+  index from the live run (`<DATA_DIR>/oracle/index.json`, 6 moments) and lit up `/api/search` +
+  `/api/qa`. Search worked well, but **Ask** returned the Kimi-K2P6 reasoning model's raw
+  chain-of-thought as the answer (truncated mid-thought) — the same leak class as the captioner, in
+  `oracle/qa.py` which returned `chat.complete(...)` verbatim, with `FireworksChat` capped at
+  `max_tokens=1024`. Fix: the QA system prompt now asks the model to wrap only its final answer in
+  `<answer>...</answer>`; `qa.answer` extracts that span (falls back to whole content if untagged);
+  `FireworksChat` default `max_tokens` 1024 → 4096 for reasoning headroom. Oracle suite 14 → **18**
+  green, ruff clean. Live-verified: Ask now returns a clean, grounded answer with `[task_id @ t]`
+  citations and no leaked reasoning. Index needs no rebuild (answer-formatting path only).
 - 2026-07-10 — Tumo (via Claude) — **Live end-to-end UI testing + synthesis robustness fix.** Brought
   up the full stack locally (web + API) and ran real pipeline jobs to test the Captioner Hub. Built a
   **CPU dev image** (`services/captioner/Dockerfile.dev`: `python:3.11-slim` + ffmpeg + faster-whisper
