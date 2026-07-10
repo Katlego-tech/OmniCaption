@@ -102,9 +102,15 @@ Planning is now self-driven through [SPEC.md](SPEC.md) / [PLAN.md](PLAN.md) / [T
   ruff clean): (1) the reasoning VLM occasionally emits a degenerate `<captionStyle>...</captionStyle>`
   (bare ellipsis) — seen once as a literal `"..."` caption; (2) worse, when it is truncated
   (`finish_reason="length"`) before closing the tag, the old parse path dumped the **entire raw
-  chain-of-thought** as the caption. `synthesis.generate_caption` now rejects punctuation-only/empty
-  captions and untagged truncated/long reasoning leaks (`SynthesisError` → grounded deterministic
-  fallback) instead of writing junk to results.json. Also confirmed the honest-reporting fix live: an
+  chain-of-thought** as the caption. Fix has two layers: (i) `synthesis` rejects punctuation-only/empty
+  captions and untagged truncated/long reasoning leaks; (ii) because the failures are **intermittent**,
+  `generate_caption` now **retries with escalation** (config `OMNICAPTION_SYNTHESIS_MAX_ATTEMPTS`,
+  default 3) — each retry doubles `max_tokens` (recovers truncation/leaks) and adds a little
+  temperature (breaks a repeated degenerate answer) — falling back to the grounded deterministic
+  caption only if all attempts fail. Verified live: a re-run of the same clip that had shown BOTH
+  `"..."` (sarcastic) and an 18,897-char reasoning leak (humorous) recovered **four real captions** —
+  sarcastic on attempt 3, humorous on attempt 2 (logs show the reject → recover). Also confirmed the
+  honest-reporting fix live: an
   ingestion 403 (bad clip URL) → empty captions → UI shows "completed with errors" with the log, not a
   false green. **Ops note (dev only):** a fresh web build on a non-3000 port needs that origin in the
   API's `CORS_ORIGINS`.

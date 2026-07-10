@@ -151,6 +151,47 @@ class CaptionSynthesizer:
 
         messages = self._build_messages(keyframes, transcript.text, style)
 
+        # The reasoning VLM fails intermittently: a repeated degenerate answer
+        # ("...") or a truncation that leaks raw chain-of-thought. Both usually
+        # clear on a retry, so escalate rather than immediately falling back —
+        # more tokens gives reasoning room, and a little temperature after the
+        # first try breaks the model out of a repeated bad answer.
+        attempts = max(1, self._cfg.synthesis_max_attempts)
+        last_error: SynthesisError | None = None
+        for attempt in range(attempts):
+            temperature = 0.0 if attempt == 0 else min(0.2 + 0.2 * attempt, 0.6)
+            max_tokens = self._cfg.max_new_tokens * (attempt + 1)
+            try:
+                caption = self._request_caption(messages, style, temperature, max_tokens)
+                if attempt > 0:
+                    logger.info(
+                        "Synthesis for style=%s recovered on attempt %d/%d.",
+                        style.value,
+                        attempt + 1,
+                        attempts,
+                    )
+                return caption
+            except SynthesisError as exc:
+                last_error = exc
+                logger.warning(
+                    "Synthesis attempt %d/%d for style=%s failed: %s",
+                    attempt + 1,
+                    attempts,
+                    style.value,
+                    exc,
+                )
+
+        assert last_error is not None  # loop ran at least once
+        raise last_error
+
+    def _request_caption(
+        self,
+        messages: list[dict[str, Any]],
+        style: Style,
+        temperature: float,
+        max_tokens: int,
+    ) -> str:
+        """One Fireworks call; returns a validated caption or raises SynthesisError."""
         url = f"{self._cfg.fireworks_api_url}/chat/completions"
         headers = {
             "Authorization": f"Bearer {self._cfg.fireworks_api_key}",
@@ -159,8 +200,8 @@ class CaptionSynthesizer:
         payload = {
             "model": self._cfg.fireworks_vlm_model,
             "messages": messages,
-            "temperature": 0.0,
-            "max_tokens": self._cfg.max_new_tokens,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
         }
 
         try:
@@ -184,9 +225,8 @@ class CaptionSynthesizer:
         # Prefer the tagged caption; a reasoning VLM keeps its thinking outside the
         # tags. A response with no closing tag has either leaked raw chain-of-thought
         # or been truncated before the tag closed (finish_reason == "length") — dump
-        # neither into results.json; fail so the caller falls back to a grounded
-        # caption. A short tag-less response is still accepted (some models answer
-        # directly).
+        # neither into results.json. A short tag-less response is still accepted
+        # (some models answer directly).
         match = _CAPTION_TAG_RE.search(content)
         if match:
             caption = match.group(1).strip()

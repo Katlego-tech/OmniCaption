@@ -206,7 +206,54 @@ def test_truncated_untagged_response_raises(
     synth.load()
     keyframes = [Keyframe(index=0, timestamp=0.0, image=np.zeros((2, 2, 3), dtype=np.uint8))]
     transcript = Transcript(language="en", duration=1.0)
+    # One attempt so it doesn't retry into success here; assert the raw truncation is rejected.
+    synth._cfg = settings_with_key.model_copy(update={"synthesis_max_attempts": 1})
     _mock_content(monkeypatch, "The scene shows a figure walking through", finish_reason="length")
 
     with pytest.raises(SynthesisError):
         synth.generate_caption(keyframes, transcript, Style.FORMAL)
+
+
+def test_retry_recovers_after_degenerate(
+    monkeypatch: pytest.MonkeyPatch, settings_with_key: Settings
+) -> None:
+    """A degenerate first attempt is retried; a good second attempt is returned."""
+    synth = CaptionSynthesizer(settings_with_key)
+    synth.load()
+    keyframes = [Keyframe(index=0, timestamp=0.0, image=np.zeros((2, 2, 3), dtype=np.uint8))]
+    transcript = Transcript(language="en", duration=1.0)
+
+    replies = iter(
+        [
+            ("<captionStyle>...</captionStyle>", "stop"),  # attempt 1: ellipsis
+            ("<captionStyle>The leaves change.</captionStyle>", "stop"),  # attempt 2: good
+        ]
+    )
+    seen_max_tokens: list[int] = []
+
+    class MockResponse:
+        status_code = 200
+
+        def __init__(self, content: str, finish: str) -> None:
+            self._content, self._finish = content, finish
+
+        def json(self):
+            return {
+                "choices": [{"message": {"content": self._content}, "finish_reason": self._finish}]
+            }
+
+    def mock_post(url, headers, json, **kwargs):
+        seen_max_tokens.append(json["max_tokens"])
+        content, finish = next(replies)
+        return MockResponse(content, finish)
+
+    monkeypatch.setattr(requests, "post", mock_post)
+
+    caption = synth.generate_caption(keyframes, transcript, Style.SARCASTIC)
+
+    assert caption == "The leaves change."
+    # The retry escalated the token budget rather than repeating the same request.
+    assert seen_max_tokens == [
+        settings_with_key.max_new_tokens,
+        settings_with_key.max_new_tokens * 2,
+    ]
