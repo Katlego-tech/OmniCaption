@@ -288,3 +288,14 @@ Planning is now self-driven through [SPEC.md](SPEC.md) / [PLAN.md](PLAN.md) / [T
   in the auth form. api suite 77 → **87** (venv) / 84 + skip (CI), ruff clean; web lint +
   14-route build green. Live-smoked: revocation 200→logout→401, httpOnly `Set-Cookie`, rate-limit
   429 at the cap.
+- 2026-07-10 — Tumo (via Claude) — **Multi-instance rate limiting** (last residual; tests-first).
+  Refactored `ratelimit.py` into a `RateLimiter` protocol + `InMemoryRateLimiter` (default,
+  per-process sliding window) + `RedisRateLimiter` (shared fixed-window via atomic INCR/EXPIRE)
+  behind a `build_rate_limiter(settings)` factory. `REDIS_URL` (new, optional) selects the shared
+  backend; `redis` is an optional lazily-imported dep (not in requirements) so the base image
+  stays lean and CI needs no Redis — if the URL is unset or unreachable it degrades to in-memory
+  with a warning, and the Redis backend fails **open** on outage (availability over strictness).
+  api 87 → **91** (venv) / 88 + skip (CI): new tests cover backend selection, the unavailable-Redis
+  fallback, the shared cap (fake client), and fail-open. ruff clean. Documented tradeoffs:
+  fixed-window (vs sliding) can briefly allow up to 2× at a window boundary; fail-open means a
+  Redis outage disables limiting rather than locking users out.
