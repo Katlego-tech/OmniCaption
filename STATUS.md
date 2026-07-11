@@ -91,6 +91,16 @@ Planning is now self-driven through [SPEC.md](SPEC.md) / [PLAN.md](PLAN.md) / [T
 
 ## 🗒️ Log
 
+- 2026-07-11 — Tumo (via Claude) — **Reverted the ROCm prunes — restored the pruned libraries/kernels.**
+  Katlego's laptop test surfaced the bug the earlier entry warned about: the gfx942-only rocBLAS prune
+  (and the hipblaslt/rocfft/migraphx/llvm heavy-dep prune) made the image MI300-specific, so on other
+  AMD hardware rocBLAS couldn't load its kernels and faster-whisper raised `No SGEMM backend on CPU`.
+  Removed **both** prune `RUN` blocks from `services/captioner/Dockerfile`; only harmless build
+  artifacts (`__pycache__`, `/root/.cache`) are still cleaned. Rationale: the Dockerfile multi-stage
+  rework already brought the image to **~7 GB** (per Tumo — "the Dockerfile was the issue"), so the
+  size-motivated pruning is no longer needed for the < 10 GB gate. **⚠️ Un-pruning grows /opt/rocm, so
+  the 7 GB figure MUST be re-measured on a full `linux/amd64` build before submission** (CI does not
+  build the image or check its size). Supersedes the two prune entries below.
 - 2026-07-11 — Tumo (via Claude) — **Submission prep: strict < 10 GB gate + honest checklist.** The
   size limit is **strictly < 10 GB** (decimal, the unit `docker images` prints) — corrected the
   smoke-test gate from `<= 10 GiB` (10.74e9, too lenient) to `< 10 GB` (< 10e9 bytes): 9.99 GB PASS,

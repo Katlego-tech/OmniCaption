@@ -61,28 +61,16 @@ RUN python -c "import huggingface_hub; \
 # VLM API - only Hugging Face hub lookups are forced offline.)
 ENV HF_HUB_OFFLINE="1"
 
-# ---- Prune heavy ROCm dependencies to meet the <=10 GB gate -------------------
-# We delete static archives (.a), LLVM build files, and unused heavy libraries
-# (like hipblaslt, rocfft, and migraphx) which are not needed for Whisper or VLM.
-RUN find /opt/rocm -name "*.a" -delete \
-    && rm -rf /opt/rocm/lib/llvm \
-    && rm -rf /opt/rocm/lib/hipblaslt \
-    && rm -rf /opt/rocm/lib/rocfft \
-    && rm -rf /opt/rocm/lib/migraphx \
-    && rm -rf /opt/rocm/lib/librocalution_hip.so* \
-    && rm -rf /opt/rocm/lib/librpp.so* \
-    && find / -type d -name "__pycache__" -prune -exec rm -rf {} + \
+# ---- ROCm libraries kept intact ----------------------------------------------
+# The heavy-dependency prune (deleting hipblaslt/rocfft/migraphx/llvm) and the
+# gfx942-only rocBLAS kernel prune were REMOVED: they made the image MI300-only
+# and broke runs on other AMD hardware (e.g. rocBLAS falling back so faster-whisper
+# raised "No SGEMM backend on CPU" on Katlego's laptop). The Dockerfile multi-stage
+# rework already brings the final image to ~7 GB, so the size-motivated pruning is
+# no longer needed to satisfy the <=10 GB gate. Only harmless build artifacts are
+# cleaned to keep the image tidy without removing any runtime ROCm data.
+RUN find / -type d -name "__pycache__" -prune -exec rm -rf {} + \
     && rm -rf /root/.cache/*
-
-# ---- Keep only MI300 (gfx942) rocBLAS kernels -------------------------------
-# rocBLAS/Tensile ships precompiled GEMM kernels for every gfx arch; the judge
-# runs on AMD Instinct MI300 (gfx942), so the other arches are dead weight
-# (~1-3 GB). This makes the image MI300-specific by design. Files without a gfx
-# tag (arch-agnostic indices) are kept; the -path form no-ops if a ROCm version
-# lays the library out differently. VALIDATE ON gfx942 (see scripts/smoke.sh):
-# on CPU/other GPUs rocBLAS never loads these, so only a real MI300 run proves it.
-RUN find /opt/rocm -type f -path '*/rocblas/library/*' -name '*gfx*' \
-        ! -name '*gfx942*' -delete
 
 # ---- Application source -------------------------------------------------------
 # Placed after heavy layers so minor code modifications do not invalidate the build cache
@@ -103,7 +91,7 @@ RUN rm -rf /opt/rocm /opt/venv
 COPY --from=builder /opt/venv /opt/venv
 COPY --from=builder /usr/local /usr/local
 
-# Copy the aggressively pruned ROCm runtime environment
+# Copy the full ROCm runtime environment (kernels for all gfx arches retained)
 COPY --from=builder /opt/rocm /opt/rocm
 
 # Copy the baked Hugging Face model weights cache
