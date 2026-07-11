@@ -77,6 +77,16 @@ RUN find /opt/rocm -name "*.a" -delete \
     && find / -type d -name "__pycache__" -prune -exec rm -rf {} + \
     && rm -rf /root/.cache/*
 
+# ---- Keep only MI300 (gfx942) rocBLAS kernels -------------------------------
+# rocBLAS/Tensile ships precompiled GEMM kernels for every gfx arch; the judge
+# runs on AMD Instinct MI300 (gfx942), so the other arches are dead weight
+# (~1-3 GB). This makes the image MI300-specific by design. Files without a gfx
+# tag (arch-agnostic indices) are kept; the -path form no-ops if a ROCm version
+# lays the library out differently. VALIDATE ON gfx942 (see scripts/smoke.sh):
+# on CPU/other GPUs rocBLAS never loads these, so only a real MI300 run proves it.
+RUN find /opt/rocm -type f -path '*/rocblas/library/*' -name '*gfx*' \
+        ! -name '*gfx942*' -delete
+
 # ---- Squashed final stage ----------------------------------------------------
 FROM scratch
 COPY --from=builder / /
