@@ -74,6 +74,7 @@ RUN find /opt/rocm -name "*.a" -delete \
     && rm -rf /opt/rocm/lib/migraphx \
     && rm -rf /opt/rocm/lib/librocalution_hip.so* \
     && rm -rf /opt/rocm/lib/librpp.so* \
+    && find / -type d -name "__pycache__" -prune -exec rm -rf {} + \
     && rm -rf /root/.cache/*
 
 # ---- Squashed final stage ----------------------------------------------------
