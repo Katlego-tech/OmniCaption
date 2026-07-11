@@ -47,12 +47,17 @@ if [ "$BUILD" = 1 ]; then
   docker build --platform linux/amd64 -t "$IMAGE" "$here"
 fi
 
-# --- 3. image size gate ------------------------------------------------------
+# --- 3. image size gate (STRICT: < 10 GB, decimal — matches `docker images`) --
 echo "== image size =="
 bytes="$(docker image inspect "$IMAGE" --format '{{.Size}}')"
+gb="$(awk -v b="$bytes" 'BEGIN{printf "%.2f", b/1000000000}')"
 gib="$(awk -v b="$bytes" 'BEGIN{printf "%.2f", b/1073741824}')"
-echo "  $IMAGE = ${gib} GiB"
-awk -v b="$bytes" 'BEGIN{exit !(b <= 10*1073741824)}' && pass "image <= 10 GiB" || fail "image ${gib} GiB > 10 GiB gate"
+echo "  $IMAGE = ${gb} GB (${gib} GiB) = ${bytes} bytes"
+# The gate is "< 10 GB". GB is decimal (10^9) here, the strictest reading and the
+# unit `docker images` prints — an image shown as "10.0GB"+ fails.
+awk -v b="$bytes" 'BEGIN{exit !(b < 10000000000)}' \
+  && pass "image < 10 GB (${gb} GB)" \
+  || fail "image ${gb} GB is NOT < 10 GB — prune more"
 
 # --- run: request the GPU if the host exposes ROCm devices -------------------
 gpu_flags=""

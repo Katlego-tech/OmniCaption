@@ -91,6 +91,15 @@ Planning is now self-driven through [SPEC.md](SPEC.md) / [PLAN.md](PLAN.md) / [T
 
 ## 🗒️ Log
 
+- 2026-07-11 — Tumo (via Claude) — **Submission prep: strict < 10 GB gate + honest checklist.** The
+  size limit is **strictly < 10 GB** (decimal, the unit `docker images` prints) — corrected the
+  smoke-test gate from `<= 10 GiB` (10.74e9, too lenient) to `< 10 GB` (< 10e9 bytes): 9.99 GB PASS,
+  10.00 GB FAIL. Added `services/captioner/scripts/build_push.sh` — builds `linux/amd64`, tags,
+  **refuses to push a ≥10 GB image**, and prints the size; `NO_PUSH=1` for build+measure only.
+  Fixed a stale/false claim in `docs/06-judging-criteria.md`: it asserted the image was 9.58 GB / ≤10 GB,
+  but it's actually **10.28 GB** (over) on the grown base — the size + registry items are now
+  unchecked with the real status and the exact remaining actions (rebuild on MI300 → smoke.sh →
+  build_push.sh → record the public pull URL). No code/runtime change; docs + helper scripts only.
 - 2026-07-11 — Tumo (via Claude) — **Image size: gfx942-only rocBLAS prune + container smoke test**
   (⚠️ **merged UNVALIDATED** per Tumo's call — MI300 smoke deferred). Added a Dockerfile prune that keeps only MI300 (`gfx942`)
   rocBLAS/Tensile kernels (`find … -path '*/rocblas/library/*' -name '*gfx*' ! -name '*gfx942*'
