@@ -92,7 +92,7 @@ Planning is now self-driven through [SPEC.md](SPEC.md) / [PLAN.md](PLAN.md) / [T
 ## 🗒️ Log
 
 - 2026-07-11 — Tumo (via Claude) — **Image size: gfx942-only rocBLAS prune + container smoke test**
-  (⏳ PR held for MI300 validation). Added a Dockerfile prune that keeps only MI300 (`gfx942`)
+  (⚠️ **merged UNVALIDATED** per Tumo's call — MI300 smoke deferred). Added a Dockerfile prune that keeps only MI300 (`gfx942`)
   rocBLAS/Tensile kernels (`find … -path '*/rocblas/library/*' -name '*gfx*' ! -name '*gfx942*'
   -delete`), the big lever (~1–3 GB) toward the ≤10 GB gate — makes the image **MI300-specific by
   design**. Added `services/captioner/scripts/smoke.sh`: builds the image, runs one clip, and hard-
@@ -100,8 +100,10 @@ Planning is now self-driven through [SPEC.md](SPEC.md) / [PLAN.md](PLAN.md) / [T
   active), (3) image ≤10 GB, (4) captions non-empty (when a key is set). **Critical:** the gfx942
   prune can only be validated on real gfx942 — on CPU/other GPUs rocBLAS never loads the kept
   kernels, so the script reports GPU proof INCONCLUSIVE (exit 2) off-MI300. Verified here: Dockerfile
-  lints clean, `bash -n` clean, both results.json assertions catch the right failures. **Not merged
-  — needs a rebuild + `smoke.sh` PASS on the MI300 box first** (I can't GPU-test the ROCm image).
+  lints clean, `bash -n` clean, both results.json assertions catch the right failures. **⚠️ OPEN RISK:
+  merged without GPU validation (Tumo chose to merge now, validate later). Before the submission run,
+  someone MUST rebuild on the MI300 and get `smoke.sh` → SMOKE PASSED; if the gfx942 prune cut a
+  kernel gfx942 needs, the container will fail on the MI300 (fix forward by narrowing the prune).**
 - 2026-07-11 — Tumo (via Claude) — **Image size: strip `__pycache__`** (toward the ≤10 GB gate; the
   ROCm image had crept to 10.28 GB on a moving `rocm/pytorch:latest` base). Added a
   `find / -type d -name __pycache__ -prune -exec rm -rf {} +` to the Dockerfile prune layer — safe,
