@@ -91,6 +91,14 @@ Planning is now self-driven through [SPEC.md](SPEC.md) / [PLAN.md](PLAN.md) / [T
 
 ## 🗒️ Log
 
+- 2026-07-11 — Tumo (via Claude) — **Image size: strip `__pycache__`** (toward the ≤10 GB gate; the
+  ROCm image had crept to 10.28 GB on a moving `rocm/pytorch:latest` base). Added a
+  `find / -type d -name __pycache__ -prune -exec rm -rf {} +` to the Dockerfile prune layer — safe,
+  since Python regenerates bytecode on import. Validated the command on the CPU dev image: removed
+  313 dirs / 47 MB, app still imports (the ROCm image carries more via torch/ctranslate2). More
+  aggressive size levers (gfx942-only rocBLAS Tensile kernels, dropping rccl/rocsparse/rocsolver/
+  rocrand, optionally MIOpen) are documented as the next step if this alone doesn't clear 10 GB —
+  those need a rebuild + MI300 GPU smoke to validate.
 - 2026-07-11 — Tumo (via Claude) — **Dockerfile: drop hardcoded `--platform` from FROM.** The ROCm
   `services/captioner/Dockerfile` used `FROM --platform=linux/amd64 rocm/pytorch:latest`, which trips
   BuildKit's `FromPlatformFlagConstDisallowed` check. Removed the constant flag; the platform is now
