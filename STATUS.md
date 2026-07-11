@@ -91,6 +91,15 @@ Planning is now self-driven through [SPEC.md](SPEC.md) / [PLAN.md](PLAN.md) / [T
 
 ## 🗒️ Log
 
+- 2026-07-11 — Tumo (via Claude) — **Dockerfile: drop hardcoded `--platform` from FROM.** The ROCm
+  `services/captioner/Dockerfile` used `FROM --platform=linux/amd64 rocm/pytorch:latest`, which trips
+  BuildKit's `FromPlatformFlagConstDisallowed` check. Removed the constant flag; the platform is now
+  set at build time (`docker build --platform linux/amd64 …`), which the canonical build already does
+  (Dockerfile comment, docs/deployment.md, captioner README). Added the flag to the two convenience
+  builds that lacked it (`package.json` `captioner:build`, root README quickstart) so the amd64
+  guarantee is preserved. `docker build --check` now reports **no warnings** (was 1); build steps
+  unchanged, so the produced image is identical on an amd64 host. (Full ROCm build not re-run here —
+  tens of GB / long; verified via the linter and that the base reference still resolves.)
 - 2026-07-11 — Tumo (via Claude) — **Oracle QA reasoning-leak fix** (tests-first). Built the Track 3
   index from the live run (`<DATA_DIR>/oracle/index.json`, 6 moments) and lit up `/api/search` +
   `/api/qa`. Search worked well, but **Ask** returned the Kimi-K2P6 reasoning model's raw

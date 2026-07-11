@@ -82,7 +82,7 @@ git config core.hooksPath .githooks          # enable the test gate
 
 # Build & run the captioner against the sample tasks
 cd services/captioner
-docker build -t omnicaption:dev .
+docker build --platform linux/amd64 -t omnicaption:dev .
 docker run --rm \
   -v "$PWD/tests/fixtures:/input" \
   -v "$PWD/out:/output" \
