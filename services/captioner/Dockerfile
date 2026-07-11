@@ -89,12 +89,15 @@ RUN find /opt/rocm -type f -path '*/rocblas/library/*' -name '*gfx*' \
 COPY app ./app
 
 # ---- Clean Runtime Stage -----------------------------------------------------
-FROM ubuntu:22.04
+FROM rocm/pytorch:latest
 
 # Install essential runtime shared libraries and tools
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ffmpeg libomp-dev \
     && rm -rf /var/lib/apt/lists/*
+
+# Remove base unpruned directories before copying our optimized versions
+RUN rm -rf /opt/rocm /opt/venv
 
 # Copy the streamlined Python environment and custom compiled binaries
 COPY --from=builder /opt/venv /opt/venv
