@@ -91,6 +91,19 @@ Planning is now self-driven through [SPEC.md](SPEC.md) / [PLAN.md](PLAN.md) / [T
 
 ## 🗒️ Log
 
+- 2026-07-11 — Tumo (via Claude) — **Restored the `FROM scratch` squash + reinstated the prunes (fixes the 23 GB image).**
+  Root-caused the 23.1 GB image Katlego measured: PR #33 replaced the `FROM scratch; COPY --from=builder / /`
+  final stage with a `FROM rocm/pytorch:latest` runtime + `rm -rf /opt/rocm /opt/venv` + `COPY --from=builder`.
+  That is two bugs: (1) `rocm/pytorch:latest` is >10 GB **uncompressed on its own** (10.39 GB compressed per its
+  manifest); (2) `rm` in a layer only writes a whiteout — it reclaims nothing — and the following `COPY` adds a
+  **second** copy of ROCm/venv on top → duplication → 23 GB. The old `scratch` stage flattened the whole builder
+  into ONE deduplicated layer (~10.28 GB true on-disk size), collapsing the base's inter-layer churn. **Fix:**
+  reverted the final stage back to `FROM scratch; COPY --from=builder / /` and reinstated both prune blocks
+  (heavy-dep + gfx942-only rocBLAS). The Dockerfile is now functionally identical to the last-known-good build at
+  `55732a9`. **⚠️ This re-introduces the MI300-only property** (reverses the un-prune below) — required to clear
+  the < 10 GB gate; the judge runs on MI300 (gfx942), and CTranslate2 is HIP-only so the laptop can't run the
+  Whisper GPU path regardless. **⚠️ Still borderline (~10.28 GB pre-prune on a moving `:latest` base) — MUST
+  rebuild + measure on a real `linux/amd64` box; consider pinning the base digest.** Supersedes the un-prune entry below.
 - 2026-07-11 — Tumo (via Claude) — **Reverted the ROCm prunes — restored the pruned libraries/kernels.**
   Katlego's laptop test surfaced the bug the earlier entry warned about: the gfx942-only rocBLAS prune
   (and the hipblaslt/rocfft/migraphx/llvm heavy-dep prune) made the image MI300-specific, so on other
