@@ -37,13 +37,15 @@ These are enforced in tests — see [04-testing-strategy](04-testing-strategy.md
 
 ## Submission checklist
 
-_Status as of 2026-07-10 (Tumo via Claude — refresh after T095/T099/T101/T102 landed and v1.0.0
-was tagged). Evidence cited per item._
+_Status as of 2026-07-11 (Tumo via Claude). Evidence cited per item._
 
-- [x] Docker image **built** for a public registry. — T099 complete (Katlego, 2026-07-10):
-      `omnicaption-captioner:latest` built, squashed to **9.58 GB**, core imports verified on GPU.
-      ⚠️ **ACTION (Katlego): record the public registry URL here** (Docker Hub / GHCR) — the push
-      itself is not evidenced in the repo, and the submission form needs the pull URL.
+- [ ] Docker image **built & pushed** to a **public** registry. — Previously built and squashed to
+      9.58 GB (Katlego, T099), but the moving `rocm/pytorch:latest` base has since grown the image to
+      **10.28 GB** (over the gate). Landed two size cuts — `__pycache__` strip (#30) and a
+      **gfx942-only rocBLAS/Tensile prune** (#31) — expected to clear it. ⚠️ **ACTIONS:** (1) rebuild
+      on the MI300 and confirm `scripts/smoke.sh` → `SMOKE PASSED` (strict < 10 GB + gfx942 proof);
+      (2) `scripts/build_push.sh <registry>` to push (it refuses to push a ≥10 GB image); (3) make it
+      **public** and **record the pull URL here** — the submission form needs it.
 - [x] Image manifest is **linux/amd64**. — ROCm `linux/amd64` base; verified at build (T099).
 - [x] **AMD compute proof** — [submission-amd-proof.md](submission-amd-proof.md) (T095):
       (a) ROCm/HIP device logs for local Whisper STT (CTranslate2 loads on GPU in-container),
@@ -58,9 +60,11 @@ was tagged). Evidence cited per item._
       clean end-to-end run verified 2026-07-09. ⚠️ Same caveat: a measured per-style timing on the
       AMD host would close this beyond doubt (synthesis HTTP timeout is 60 s to absorb
       reasoning-VLM latency).
-- [x] Image is **≤ 10 GB**. — **9.58 GB** after ROCm pruning + squash (T096 image gate,
-      2026-07-10 STATUS log). Legacy local-VLM deps (`transformers`/`accelerate`/`bitsandbytes`)
-      were pruned from `requirements.txt` in T099-prep.
+- [ ] Image is **strictly < 10 GB** (decimal, as `docker images` prints). — ⚠️ **Currently 10.28 GB**
+      (the `rocm/pytorch:latest` base grew since the 9.58 GB squash). Cuts landed: `__pycache__` strip
+      (#30) + **gfx942-only rocBLAS/Tensile prune** (#31, ~1–3 GB). **PENDING: rebuild on the MI300 and
+      re-measure via `scripts/smoke.sh`** — the gate now enforces `< 10 GB` strictly and `build_push.sh`
+      refuses to push otherwise. Update this line with the measured size once confirmed.
 - [x] Process **exits 0** on success (and on partial failure). — enforced in `app/main.py`
       (T081) + unit test T075; verified in the end-to-end run.
 - [x] All four styles (`formal`, `sarcastic`, `humorous_tech`, `humorous_non_tech`) produce
