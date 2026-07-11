@@ -1,5 +1,5 @@
-# OmniCaption captioner — linux/amd64, AMD ROCm runtime.
-# Build (the platform is REQUIRED — set it at build time, not hardcoded in FROM):
+# OmniCaption captioner - linux/amd64, AMD ROCm runtime.
+# Build (the platform is REQUIRED - set it at build time, not hardcoded in FROM):
 #   docker build --platform linux/amd64 -t omnicaption-captioner .
 # The rocm/pytorch base is amd64-only, so on an amd64 host the platform is implied
 # anyway; the flag keeps the manifest single-arch linux/amd64 on any builder.
@@ -58,13 +58,10 @@ RUN python -c "import huggingface_hub; \
 
 # Model weights are baked from here on: forbid hub network access at runtime.
 # (The container still uses the network for video downloads and the Fireworks
-# VLM API — only Hugging Face hub lookups are forced offline.)
+# VLM API - only Hugging Face hub lookups are forced offline.)
 ENV HF_HUB_OFFLINE="1"
 
-# ---- Application source -------------------------------------------------------
-COPY app ./app
-
-# ---- Prune heavy ROCm dependencies to meet the ≤10 GB gate -------------------
+# ---- Prune heavy ROCm dependencies to meet the <=10 GB gate -------------------
 # We delete static archives (.a), LLVM build files, and unused heavy libraries
 # (like hipblaslt, rocfft, and migraphx) which are not needed for Whisper or VLM.
 RUN find /opt/rocm -name "*.a" -delete \
@@ -87,11 +84,33 @@ RUN find /opt/rocm -name "*.a" -delete \
 RUN find /opt/rocm -type f -path '*/rocblas/library/*' -name '*gfx*' \
         ! -name '*gfx942*' -delete
 
-# ---- Squashed final stage ----------------------------------------------------
-FROM scratch
-COPY --from=builder / /
+# ---- Application source -------------------------------------------------------
+# Placed after heavy layers so minor code modifications do not invalidate the build cache
+COPY app ./app
+
+# ---- Clean Runtime Stage -----------------------------------------------------
+FROM ubuntu:22.04
+
+# Install essential runtime shared libraries and tools
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ffmpeg libomp-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy the streamlined Python environment and custom compiled binaries
+COPY --from=builder /opt/venv /opt/venv
+COPY --from=builder /usr/local /usr/local
+
+# Copy the aggressively pruned ROCm runtime environment
+COPY --from=builder /opt/rocm /opt/rocm
+
+# Copy the baked Hugging Face model weights cache
+COPY --from=builder /opt/hf-cache /opt/hf-cache
+
+# Copy the application code
+COPY --from=builder /app /app
 
 WORKDIR /app
+
 ENV PATH="/opt/venv/bin:/opt/rocm/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
     LD_LIBRARY_PATH="/usr/local/lib:/opt/rocm/lib" \
     PYTORCH_ROCM_ARCH="gfx942;gfx1100;gfx1032;gfx1103;gfx1150" \

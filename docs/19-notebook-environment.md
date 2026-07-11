@@ -35,7 +35,7 @@ for i in range(torch.cuda.device_count()):
     props = torch.cuda.get_device_properties(i)
     print(f"  Device {i}: {props.name}")
     print(f"    Gfx Arch: {torch.cuda.get_device_name(i)}")
-    print(f"    Total VRAM: {props.total_mem / 1e9:.2f} GB")
+    print(f"    Total VRAM: {props.total_memory / 1e9:.2f} GB")
 
 # 4. vLLM serving
 print("\n--- vLLM Version ---")
