@@ -7,7 +7,7 @@
     "apps/*"
   ],
   "scripts": {
-    "captioner:build": "docker build -t omnicaption:dev services/captioner",
+    "captioner:build": "docker build --platform linux/amd64 -t omnicaption:dev services/captioner",
     "captioner:run": "docker run --rm -v \"$PWD/services/captioner/tests/fixtures:/input\" -v \"$PWD/out:/output\" omnicaption:dev",
     "captioner:test": "cd services/captioner && python -m pytest -q",
     "captioner:lint": "cd services/captioner && ruff check . && ruff format --check .",

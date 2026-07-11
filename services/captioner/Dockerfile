@@ -1,9 +1,12 @@
 # OmniCaption captioner — linux/amd64, AMD ROCm runtime.
-# Build: docker build --platform linux/amd64 -t omnicaption-captioner .
+# Build (the platform is REQUIRED — set it at build time, not hardcoded in FROM):
+#   docker build --platform linux/amd64 -t omnicaption-captioner .
+# The rocm/pytorch base is amd64-only, so on an amd64 host the platform is implied
+# anyway; the flag keeps the manifest single-arch linux/amd64 on any builder.
 #
 # The base image ships PyTorch built against ROCm/HIP; CTranslate2 and ffmpeg
 # are added on top. Keep the final image <10 GB and cold start <60 s.
-FROM --platform=linux/amd64 rocm/pytorch:latest AS builder
+FROM rocm/pytorch:latest AS builder
 
 # ---- OS packages --------------------------------------------------------------
 # ffmpeg is required by the ingestion stage for audio extraction.
