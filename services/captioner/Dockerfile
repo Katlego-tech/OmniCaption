@@ -27,6 +27,7 @@ RUN git clone --recursive --branch v4.8.0 https://github.com/OpenNMT/CTranslate2
     && CC=/opt/rocm/lib/llvm/bin/clang CXX=/opt/rocm/lib/llvm/bin/clang++ cmake \
        -DCMAKE_CXX_COMPILER=/opt/rocm/lib/llvm/bin/clang++ \
        -DCMAKE_C_COMPILER=/opt/rocm/lib/llvm/bin/clang \
+       -DGPU_TARGETS="gfx942;gfx1100" \
        -DWITH_HIP=ON -DWITH_MKL=OFF -DOPENMP_RUNTIME=COMP -DCMAKE_BUILD_TYPE=Release .. \
     && make -j$(nproc) install \
     && cd ../python \
@@ -37,9 +38,11 @@ RUN git clone --recursive --branch v4.8.0 https://github.com/OpenNMT/CTranslate2
 
 WORKDIR /app
 
-# Default ROCm arch matrix knobs. Override at `docker run` for a specific GPU:
-#   MI300X gfx942 | RX 7900 XTX gfx1100 | RX 6600 gfx1032 | Ryzen AI gfx1103/gfx1150
-ENV PYTORCH_ROCM_ARCH="gfx942;gfx1100;gfx1032;gfx1103;gfx1150" \
+# Supported gfx arches (match the CTranslate2 GPU_TARGETS and the rocBLAS kernels
+# kept below): MI300 gfx942 and W7900/RX7900 gfx1100. This is a build-target list,
+# NOT a runtime device signal — the app auto-detects the active GPU via rocminfo.
+# Force a specific GPU at `docker run` with OMNICAPTION_GFX_ARCH / OMNICAPTION_HSA_OVERRIDE_GFX_VERSION.
+ENV PYTORCH_ROCM_ARCH="gfx942;gfx1100" \
     HF_HOME="/opt/hf-cache" \
     PYTHONUNBUFFERED="1"
 
@@ -74,15 +77,16 @@ RUN find /opt/rocm -name "*.a" -delete \
     && find / -type d -name "__pycache__" -prune -exec rm -rf {} + \
     && rm -rf /root/.cache/*
 
-# ---- Keep only MI300 (gfx942) rocBLAS kernels -------------------------------
-# rocBLAS/Tensile ships precompiled GEMM kernels for every gfx arch; the judge
-# runs on AMD Instinct MI300 (gfx942), so the other arches are dead weight
-# (~1-3 GB). This makes the image MI300-specific by design. Files without a gfx
-# tag (arch-agnostic indices) are kept; the -path form no-ops if a ROCm version
-# lays the library out differently. VALIDATE ON gfx942 (see scripts/smoke.sh):
-# on CPU/other GPUs rocBLAS never loads these, so only a real MI300 run proves it.
+# ---- Keep only the target arches' rocBLAS kernels ---------------------------
+# rocBLAS/Tensile ships precompiled GEMM kernels for every gfx arch. We keep the
+# two arches the pipeline actually runs on — MI300 (gfx942) and the W7900/RX7900
+# dev+notebook box (gfx1100) — and delete the rest (~1-3 GB): gfx1032/gfx1103/
+# gfx1150 are not used. Files without a gfx tag (arch-agnostic indices) are kept;
+# the -path form no-ops if a ROCm version lays the library out differently.
+# VALIDATE on real hardware (scripts/smoke.sh): on CPU/other GPUs rocBLAS never
+# loads these kernels, so only a real gfx942 or gfx1100 run proves it.
 RUN find /opt/rocm -type f -path '*/rocblas/library/*' -name '*gfx*' \
-        ! -name '*gfx942*' -delete
+        ! -name '*gfx942*' ! -name '*gfx1100*' -delete
 
 # ---- Application source -------------------------------------------------------
 # Placed after heavy layers so minor code modifications do not invalidate the build cache
@@ -104,7 +108,7 @@ WORKDIR /app
 
 ENV PATH="/opt/venv/bin:/opt/rocm/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
     LD_LIBRARY_PATH="/usr/local/lib:/opt/rocm/lib" \
-    PYTORCH_ROCM_ARCH="gfx942;gfx1100;gfx1032;gfx1103;gfx1150" \
+    PYTORCH_ROCM_ARCH="gfx942;gfx1100" \
     HF_HOME="/opt/hf-cache" \
     HF_HUB_OFFLINE="1" \
     PYTHONUNBUFFERED="1"

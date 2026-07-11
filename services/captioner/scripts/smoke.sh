@@ -4,14 +4,15 @@
 # Builds (unless --no-build) the linux/amd64 image, runs it against one clip, and
 # hard-checks four things:
 #   1. exit 0 and a schema-valid /output/results.json (every requested style present)
-#   2. AMD-compute proof in the logs (ROCm gfx942 device active)
+#   2. AMD-compute proof in the logs (ROCm gfx942 or gfx1100 device active)
 #   3. image size <= 10 GB (the judging gate)
 #   4. captions non-empty when FIREWORKS_API_KEY is set
 #
-# CRITICAL: the gfx942 rocBLAS prune can ONLY be validated on real gfx942 (MI300).
+# CRITICAL: the rocBLAS arch prune keeps only gfx942 + gfx1100 kernels, so it can
+# ONLY be validated on real gfx942 (MI300) or gfx1100 (W7900/RX7900) hardware.
 # On a CPU host (no /dev/kfd) the pipeline falls back to CPU and never loads the
 # pruned kernels, so GPU proof is reported as NOT VALIDATED and the script exits 2.
-# Run this on the MI300 box before trusting the pruned image.
+# Run this on the target GPU box before trusting the pruned image.
 #
 # Usage:
 #   FIREWORKS_API_KEY=fw-… services/captioner/scripts/smoke.sh
@@ -104,10 +105,10 @@ fi
 
 # --- 2. AMD-compute proof ----------------------------------------------------
 echo "== AMD-compute proof =="
-if grep -qE "ROCm gfx arch detected: gfx942|Active device: cuda" "$log"; then
-  pass "ran on AMD ROCm gfx942 (kernels loaded — gfx942 prune validated)"
+if grep -qE "ROCm gfx arch detected: gfx(942|1100)|Active device: cuda" "$log"; then
+  pass "ran on AMD ROCm GPU (gfx942/gfx1100 kernels loaded — arch prune validated)"
 elif grep -q "CPU-fallback" "$log"; then
-  echo "  \033[33mGPU NOT VALIDATED\033[0m — ran on CPU, so the gfx942 rocBLAS prune was not exercised."
+  echo "  \033[33mGPU NOT VALIDATED\033[0m — ran on CPU, so the rocBLAS arch prune was not exercised."
   [ -e /dev/kfd ] && fail "ROCm devices present but pipeline fell back to CPU" || FAILED=2
 else
   fail "no device line in logs (unexpected)"
@@ -117,7 +118,7 @@ echo
 if [ "$FAILED" = 0 ]; then
   echo "SMOKE PASSED"; exit 0
 elif [ "$FAILED" = 2 ]; then
-  echo "SMOKE INCONCLUSIVE — output+size OK but GPU proof requires an MI300 (gfx942) host."; exit 2
+  echo "SMOKE INCONCLUSIVE — output+size OK but GPU proof requires a gfx942 (MI300) or gfx1100 (W7900/RX7900) host."; exit 2
 else
   echo "SMOKE FAILED — see $log"; exit 1
 fi
