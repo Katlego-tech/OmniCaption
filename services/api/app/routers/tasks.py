@@ -8,7 +8,7 @@ import tempfile
 from pathlib import Path
 from urllib.parse import urlparse
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Response, status
 
 from app.core.config import Settings
 from app.core.deps import get_runner, get_settings, require_user
@@ -104,12 +104,13 @@ def delete_task(
 def trigger_run(
     settings: Settings = Depends(get_settings),
     runner: PipelineRunner = Depends(get_runner),
+    x_fireworks_key: str | None = Header(default=None),
     _user: dict = Depends(require_user),
 ) -> dict:
     """Launch the pipeline; 409 while a run is already in flight."""
     settings.input_dir.mkdir(parents=True, exist_ok=True)
     settings.output_dir.mkdir(parents=True, exist_ok=True)
-    if not runner.start(settings.run_command()):
+    if not runner.start(settings.run_command(x_fireworks_key)):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="A pipeline run is already in progress.",
