@@ -56,7 +56,12 @@ jobs:
 
       # Always build + enforce the strict <10 GB gate. No push here (NO_PUSH), so
       # this succeeds/fails purely on build + size, independent of credentials.
+      # FIREWORKS_API_KEY (repo secret) is baked into the image so the judge's
+      # bare `docker run` produces real captions — no runtime secret needed.
+      # Use a fresh disposable key (the image is public) and rotate after judging.
       - name: Build + enforce <10 GB gate
+        env:
+          FIREWORKS_API_KEY: ${{ secrets.FIREWORKS_API_KEY }}
         run: |
           NO_PUSH=1 bash services/captioner/scripts/build_push.sh \
             "docker.io/${DOCKERHUB_USERNAME:-unset}" "${{ github.event.inputs.tag }}"

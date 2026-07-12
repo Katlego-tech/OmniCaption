@@ -127,7 +127,13 @@ class Settings(BaseSettings):
     )
 
     # --- Timeouts / latency guards (seconds) ---
-    download_timeout_s: float = Field(default=60.0, description="Per-video download timeout.")
+    download_timeout_s: float = Field(
+        default=180.0,
+        description="Per-video download timeout. The judged clips are 1440p-4K "
+        "MP4s; a real run lost every caption when a 4K download hit the old 60 s "
+        "default, so keep generous headroom (the total-runtime guard still bounds "
+        "the batch).",
+    )
     fireworks_timeout_s: float = Field(
         default=120.0,
         description="Per-request read timeout for the Fireworks VLM call. Reasoning "
