@@ -205,7 +205,9 @@ class CaptionSynthesizer:
         }
 
         try:
-            response = requests.post(url, headers=headers, json=payload, timeout=60.0)
+            response = requests.post(
+                url, headers=headers, json=payload, timeout=self._cfg.fireworks_timeout_s
+            )
         except Exception as exc:
             raise SynthesisError(f"HTTP request to Fireworks Vision API failed: {exc}") from exc
 

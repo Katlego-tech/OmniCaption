@@ -128,6 +128,11 @@ class Settings(BaseSettings):
 
     # --- Timeouts / latency guards (seconds) ---
     download_timeout_s: float = Field(default=60.0, description="Per-video download timeout.")
+    fireworks_timeout_s: float = Field(
+        default=120.0,
+        description="Per-request read timeout for the Fireworks VLM call. Reasoning "
+        "VLMs can exceed 60s on slow networks; raise further if you see read timeouts.",
+    )
     per_request_budget_s: float = Field(
         default=30.0,
         description="Soft per-task latency budget; used to log/guard slow tasks.",
