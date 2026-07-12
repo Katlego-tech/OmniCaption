@@ -9,32 +9,30 @@
 FROM rocm/pytorch:latest AS builder
 
 # ---- OS packages --------------------------------------------------------------
-# ffmpeg is required by the ingestion stage for audio extraction.
-# git, cmake, and build-essential are required to build CTranslate2 with HIP support.
+# ffmpeg for audio extraction; libgomp1 is CTranslate2's OpenMP runtime. No build
+# toolchain is needed — CTranslate2 comes as a prebuilt ROCm wheel (below).
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ffmpeg git build-essential cmake libomp-dev \
-    && ln -sf $(find /usr/lib -name "libomp.so" | head -n 1) /usr/local/lib/libomp.so \
+    && apt-get install -y --no-install-recommends ffmpeg libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
-# ---- Compile CTranslate2-HIP from source ---------------------------------------
-# Target GPU architectures (gfx) matching the AMD matrix.
-# We build against the preinstalled ROCm SDK in the base image.
-ENV LD_LIBRARY_PATH="/usr/local/lib:${LD_LIBRARY_PATH}"
-
-RUN git clone --recursive --branch v4.8.0 https://github.com/OpenNMT/CTranslate2.git \
-    && cd CTranslate2 \
-    && mkdir build && cd build \
-    && CC=/opt/rocm/lib/llvm/bin/clang CXX=/opt/rocm/lib/llvm/bin/clang++ cmake \
-       -DCMAKE_CXX_COMPILER=/opt/rocm/lib/llvm/bin/clang++ \
-       -DCMAKE_C_COMPILER=/opt/rocm/lib/llvm/bin/clang \
-       -DGPU_TARGETS="gfx942;gfx1100" \
-       -DWITH_HIP=ON -DWITH_MKL=OFF -DOPENMP_RUNTIME=COMP -DCMAKE_BUILD_TYPE=Release .. \
-    && make -j$(nproc) install \
-    && cd ../python \
-    && pip install --no-cache-dir -r install_requirements.txt \
-    && python setup.py bdist_wheel \
-    && pip install --no-cache-dir dist/*.whl \
-    && cd ../.. && rm -rf CTranslate2
+# ---- CTranslate2-ROCm from the official prebuilt wheel ------------------------
+# We DON'T compile CTranslate2. OpenNMT ships ROCm wheels built against ROCm 7.2.1
+# (this base is 7.2.x) with GPU kernels for gfx942 + gfx1100 (and more) already
+# baked in — no GPU_TARGETS guesswork, and minutes- not hours-long builds. Pick the
+# wheel matching this base's CPython, install it FIRST (so faster-whisper below
+# reuses it instead of pulling the NVIDIA build from PyPI), then prove it imports.
+# NOTE: the download is from github.com, so build in a clean-network environment
+# (GitHub Actions) — NOT the SSL-intercepting notebook proxy.
+ARG CT2_VERSION=4.8.1
+ADD https://github.com/OpenNMT/CTranslate2/releases/download/v${CT2_VERSION}/rocm-python-wheels-Linux.zip /tmp/ct2.zip
+RUN python -m zipfile -e /tmp/ct2.zip /tmp/ct2_wheels \
+    && PYTAG="$(python -c 'import sys; print(f"cp{sys.version_info.major}{sys.version_info.minor}")')" \
+    && WHL="$(find /tmp/ct2_wheels -name "ctranslate2-*${PYTAG}*x86_64*.whl" | head -n 1)" \
+    && { [ -n "$WHL" ] || { echo "No ctranslate2 wheel for ${PYTAG} in the zip:"; find /tmp/ct2_wheels -name '*.whl'; exit 1; }; } \
+    && echo "Installing ${WHL}" \
+    && pip install --no-cache-dir "$WHL" \
+    && rm -rf /tmp/ct2.zip /tmp/ct2_wheels \
+    && python -c "import ctranslate2; print('CTranslate2', ctranslate2.__version__)"
 
 WORKDIR /app
 
@@ -99,8 +97,9 @@ COPY app ./app
 # and `rm` only writes a whiteout — so re-using the heavy base plus copying our
 # dirs back on top ballooned the image to ~23 GB. Squashing onto `scratch`
 # collapses all that inter-layer churn (and the base's own bloat) down to the true
-# on-disk size (~10 GB before pruning). ffmpeg, libomp, python, the venv, the
-# pruned ROCm runtime, the baked weights, and the app all come from the builder.
+# on-disk size (~10 GB before pruning). ffmpeg, libgomp, python, the venv, the
+# CTranslate2-ROCm wheel, the pruned ROCm runtime, the baked weights, and the app
+# all come from the builder.
 FROM scratch
 COPY --from=builder / /
 

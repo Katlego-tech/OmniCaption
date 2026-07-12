@@ -91,6 +91,20 @@ Planning is now self-driven through [SPEC.md](SPEC.md) / [PLAN.md](PLAN.md) / [T
 
 ## 🗒️ Log
 
+- 2026-07-12 — Tumo (via Claude) — **Switched CTranslate2 to the prebuilt ROCm wheel + added a Docker Hub publish workflow.**
+  Decided to stop compiling CTranslate2 from source (slow, fragile, never validated on gfx1100). OpenNMT ships a
+  **prebuilt ROCm wheel built against ROCm 7.2.1 — exactly matching the notebook** — with kernels for gfx942 +
+  gfx1100 already baked in (confirmed via the CT2 `Dockerfile_rocm`). `rocm/pytorch:latest` is ROCm 7.2.4 / py3.12
+  and uses `/opt/venv` (verified via `imagetools inspect`), so the wheel drops in cleanly. **Changes (on PR #36
+  branch):** (1) Dockerfile — replaced the `git clone + cmake + make` compile with `ADD`ing the release zip and
+  `pip install`ing the CPython-matched wheel (installed BEFORE requirements so faster-whisper reuses it, not the
+  PyPI NVIDIA build); dropped the build toolchain (git/cmake/build-essential) for `ffmpeg + libgomp1`. (2) New
+  `.github/workflows/publish-captioner.yml` — manual `workflow_dispatch` that frees runner disk, logs in to Docker
+  Hub (`DOCKERHUB_USERNAME`/`DOCKERHUB_TOKEN` secrets), and runs `build_push.sh` (enforces the strict < 10 GB gate,
+  pushes `docker.io/<user>/omnicaption-captioner:<tag>`). **Why CI, not the notebook:** the notebook's SSL-intercepting
+  proxy (cert names GitHub/Docker/HuggingFace) breaks in-build downloads; GitHub Actions has a clean network.
+  **Remaining before submission:** add the two Docker Hub secrets → run the workflow → make the repo public →
+  `docker pull` on the gfx1100 notebook and run `smoke.sh` for the GPU proof. All 64 captioner tests still pass.
 - 2026-07-12 — Tumo (via Claude) — **Found the REAL cause of the "No SGEMM backend on CPU" crash + targeted gfx1100.**
   Recon on the AMD notebook shows the box is **gfx1100** (W7900, 48 GB VRAM), not gfx942/MI300. Root cause of
   Katlego's crash was NOT the prune: `detect_gfx_arch()` read the multi-arch **build-target list**

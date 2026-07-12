@@ -1,0 +1,59 @@
+name: Publish captioner image
+
+# Manual, on-demand build + push of the AMD/ROCm captioner image to Docker Hub.
+# Runs in GitHub's clean-network environment (no notebook SSL proxy) so the
+# CTranslate2-ROCm wheel (github.com) and Whisper weights (huggingface.co) download
+# fine. The <10 GB judging gate is enforced by build_push.sh — the job FAILS if the
+# image is >=10 GB and nothing is pushed.
+#
+# One-time setup (repo Settings -> Secrets and variables -> Actions):
+#   DOCKERHUB_USERNAME  your Docker Hub username
+#   DOCKERHUB_TOKEN     a Docker Hub access token (Account Settings -> Security)
+#
+# After a successful run, the GPU smoke test still has to run on the gfx1100
+# notebook: `docker pull <the pushed ref>` then services/captioner/scripts/smoke.sh.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Image tag to publish (e.g. latest, v1, or a date)"
+        default: "latest"
+        required: true
+
+jobs:
+  build-push:
+    name: build + gate (<10 GB) + push
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      # The rocm/pytorch base + full builder stage need far more disk than the
+      # ~21 GB a fresh runner has free. Reclaim the big preinstalled toolchains.
+      - name: Free up disk space
+        run: |
+          echo "Before:"; df -h /
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/.ghcup \
+                      /usr/local/lib/android /opt/hostedtoolcache/CodeQL \
+                      /usr/local/share/boost "$AGENT_TOOLSDIRECTORY" || true
+          sudo docker image prune -af || true
+          echo "After:"; df -h /
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build, enforce <10 GB gate, and push
+        run: |
+          bash services/captioner/scripts/build_push.sh \
+            "docker.io/${{ secrets.DOCKERHUB_USERNAME }}" \
+            "${{ github.event.inputs.tag }}"
+
+      - name: Reminder
+        if: success()
+        run: |
+          echo "Pushed. Make the Docker Hub repo PUBLIC so the judges can pull it,"
+          echo "then on the gfx1100 notebook: docker pull the ref above and run"
+          echo "services/captioner/scripts/smoke.sh to validate the GPU path."
