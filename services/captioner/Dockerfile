@@ -50,12 +50,13 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # ---- Model weight cache layer -------------------------------------------------
 # Bake the Whisper weights into HF_HOME while the network is still allowed, so
-# container startup does no model download (<60 s budget). faster-whisper's
-# "large-v3" alias resolves to this repo via huggingface_hub, which finds the
-# baked snapshot in HF_HOME at runtime. This layer is cached independently of
-# the app source, so code edits do not re-download the (~3 GB) weights.
+# container startup does no model download (<60 s budget). We use large-v3-TURBO
+# (~1.6 GB vs ~2.9 GB for large-v3) — the ~1.3 GB saving is what brings the image
+# under the 10 GB gate, at near-identical transcription quality (and the eval
+# clips are largely silent B-roll anyway). The app loads it by the same repo id
+# (OMNICAPTION_WHISPER_MODEL_SIZE below), found offline in this baked cache.
 RUN python -c "import huggingface_hub; \
-               huggingface_hub.snapshot_download('Systran/faster-whisper-large-v3', cache_dir='/opt/hf-cache')"
+               huggingface_hub.snapshot_download('deepdml/faster-whisper-large-v3-turbo-ct2', cache_dir='/opt/hf-cache')"
 
 # Model weights are baked from here on: forbid hub network access at runtime.
 # (The container still uses the network for video downloads and the Fireworks
@@ -129,6 +130,7 @@ ENV PATH="/opt/venv/bin:/opt/rocm/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/
     PYTORCH_ROCM_ARCH="gfx942;gfx1100" \
     HF_HOME="/opt/hf-cache" \
     HF_HUB_OFFLINE="1" \
+    OMNICAPTION_WHISPER_MODEL_SIZE="deepdml/faster-whisper-large-v3-turbo-ct2" \
     PYTHONUNBUFFERED="1"
 
 # The eval harness mounts /input and /output at runtime. The synthesis stage
