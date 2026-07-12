@@ -15,6 +15,7 @@ large models never co-reside in VRAM.
 from __future__ import annotations
 
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -68,11 +69,20 @@ class CaptionPipeline:
         # Collected for the transcript sidecar (Track 3 oracle enrichment).
         self.transcripts: dict[str, Transcript] = {}
 
-    def run(self, tasks: list[Task]) -> list[ClipResult]:
+    def run(
+        self,
+        tasks: list[Task],
+        on_result: Callable[[list[ClipResult]], None] | None = None,
+    ) -> list[ClipResult]:
         """Run the pipeline over all tasks.
 
         Args:
             tasks: Parsed input tasks.
+            on_result: Optional callback fired after EVERY task with the results
+                accumulated so far — the entrypoint uses it to refresh
+                ``results.json`` incrementally so a mid-batch kill still leaves
+                a complete, valid document on disk. Callback errors are logged
+                and never abort the batch.
 
         Returns:
             One :class:`ClipResult` per task (order preserved). A task that fails
@@ -80,18 +90,29 @@ class CaptionPipeline:
         """
         self._run_started = time.monotonic()
         results: list[ClipResult] = []
+        # Stop STARTING tasks early enough that the in-flight one can finish and
+        # the process still exits 0 before any harness-side kill at the budget.
+        start_cutoff = max(0.0, self._cfg.total_runtime_budget_s - self._cfg.budget_reserve_s)
 
         for task in tasks:
             elapsed = time.monotonic() - self._run_started
-            if elapsed > self._cfg.total_runtime_budget_s:
+            if elapsed > start_cutoff:
                 logger.error(
-                    "Total runtime budget (%.0fs) exceeded; emitting empty results for rest.",
+                    "Runtime cutoff reached (%.0fs elapsed > %.0fs budget - %.0fs reserve); "
+                    "emitting empty results for the remaining tasks.",
+                    elapsed,
                     self._cfg.total_runtime_budget_s,
+                    self._cfg.budget_reserve_s,
                 )
                 results.append(build_result(task.task_id, {}, task.styles))
-                continue
+            else:
+                results.append(self._run_task(task))
 
-            results.append(self._run_task(task))
+            if on_result is not None:
+                try:
+                    on_result(list(results))
+                except Exception as exc:  # noqa: BLE001 - reporting never sinks the batch
+                    logger.warning("on_result callback failed: %s", exc)
 
         return results
 

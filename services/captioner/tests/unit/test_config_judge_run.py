@@ -34,6 +34,20 @@ def test_download_timeout_covers_uhd_judging_clips() -> None:
     assert _default_settings().download_timeout_s >= 180.0
 
 
+def test_first_attempt_token_headroom_avoids_length_retry() -> None:
+    """4096 max_tokens truncated real reasoning output (finish_reason='length'
+    at 18k chars on v1/sarcastic, costing a ~60 s retry); first attempts need
+    more headroom."""
+    assert _default_settings().max_new_tokens >= 8192
+
+
+def test_budget_reserve_default_leaves_exit_margin() -> None:
+    """The guard must stop STARTING tasks early enough that the in-flight task
+    finishes and the process exits 0 before the harness kill."""
+    reserve = _default_settings().budget_reserve_s
+    assert 60.0 <= reserve <= 240.0
+
+
 def test_empty_api_key_falls_back_instead_of_calling_fireworks() -> None:
     """ENV FIREWORKS_API_KEY="" (unsupplied build-arg) must act like no key."""
     cfg = Settings(_env_file=None, fireworks_api_key="")

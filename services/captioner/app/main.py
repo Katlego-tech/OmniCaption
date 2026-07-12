@@ -56,10 +56,25 @@ def run() -> int:
     tasks = _load_tasks(cfg)
     logger.info("Loaded %d task(s).", len(tasks))
 
+    # Kill-safety: write a complete, schema-valid results.json (every task,
+    # empty captions) BEFORE any processing, then atomically refresh it after
+    # each task. If the harness kills the container mid-batch, a valid document
+    # covering every task id is already on disk — a missing output or missing
+    # task is scored as a hard failure, an empty caption merely scores low.
+    placeholders: list[ClipResult] = [build_result(t.task_id, {}, t.styles) for t in tasks]
+
+    def _flush(done: list[ClipResult]) -> None:
+        validate_and_write(list(done) + placeholders[len(done) :], cfg.results_path)
+
+    try:
+        _flush([])
+    except Exception as exc:  # noqa: BLE001 - pre-write is best-effort
+        logger.exception("Pre-write of results.json failed: %s", exc)
+
     results: list[ClipResult] = []
     pipeline = CaptionPipeline(cfg)
     try:
-        results = pipeline.run(tasks)
+        results = pipeline.run(tasks, on_result=_flush)
     except Exception as exc:  # noqa: BLE001 - guarantee an output file regardless
         logger.exception("Pipeline crashed: %s", exc)
         # Backfill empty results so every task still appears in the output.

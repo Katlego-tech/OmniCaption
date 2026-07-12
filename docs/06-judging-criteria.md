@@ -39,13 +39,12 @@ These are enforced in tests — see [04-testing-strategy](04-testing-strategy.md
 
 _Status as of 2026-07-11 (Tumo via Claude). Evidence cited per item._
 
-- [ ] Docker image **built & pushed** to a **public** registry. — Previously built and squashed to
-      9.58 GB (Katlego, T099), but the moving `rocm/pytorch:latest` base has since grown the image to
-      **10.28 GB** (over the gate). Landed two size cuts — `__pycache__` strip (#30) and a
-      **gfx942-only rocBLAS/Tensile prune** (#31) — expected to clear it. ⚠️ **ACTIONS:** (1) rebuild
-      on the MI300 and confirm `scripts/smoke.sh` → `SMOKE PASSED` (strict < 10 GB + gfx942 proof);
-      (2) `scripts/build_push.sh <registry>` to push (it refuses to push a ≥10 GB image); (3) make it
-      **public** and **record the pull URL here** — the submission form needs it.
+- [x] Docker image **built & pushed** to a **public** registry. — ✅ 2026-07-12: the "Publish
+      captioner image" workflow built + pushed **`docker.io/katlegotech/omnicaption-captioner:latest`**
+      (public — anonymous `docker pull` works; Docker Hub shows the tag active, ~4.6 GB compressed).
+      **This is the submission pull URL.** ⚠️ One re-push pending: the derived image baking the
+      fresh Fireworks key + `OMNICAPTION_DOWNLOAD_TIMEOUT_S=180` (ENV-only layer, same blobs) so a
+      bare judge `docker run` produces real captions — see SUBMISSION.md.
 - [x] Image manifest is **linux/amd64**. — ROCm `linux/amd64` base; verified at build (T099).
 - [x] **AMD compute proof** — [submission-amd-proof.md](submission-amd-proof.md) (T095):
       (a) ROCm/HIP device logs for local Whisper STT (CTranslate2 loads on GPU in-container),
@@ -60,11 +59,12 @@ _Status as of 2026-07-11 (Tumo via Claude). Evidence cited per item._
       clean end-to-end run verified 2026-07-09. ⚠️ Same caveat: a measured per-style timing on the
       AMD host would close this beyond doubt (synthesis HTTP timeout is 60 s to absorb
       reasoning-VLM latency).
-- [ ] Image is **strictly < 10 GB** (decimal, as `docker images` prints). — ⚠️ **Currently 10.28 GB**
-      (the `rocm/pytorch:latest` base grew since the 9.58 GB squash). Cuts landed: `__pycache__` strip
-      (#30) + **gfx942-only rocBLAS/Tensile prune** (#31, ~1–3 GB). **PENDING: rebuild on the MI300 and
-      re-measure via `scripts/smoke.sh`** — the gate now enforces `< 10 GB` strictly and `build_push.sh`
-      refuses to push otherwise. Update this line with the measured size once confirmed.
+- [x] Image is **strictly < 10 GB** (decimal, as `docker images` prints). — ✅ **9.67 GB measured in
+      CI** by `build_push.sh`'s strict gate on the pushed build (2026-07-12 STATUS log; the path from
+      22.1 → 9.67 GB: prebuilt CT2 ROCm wheel, torch dropped, symlink-resolved ROCm prunes,
+      large-v3-turbo weights). Note: Docker Desktop's containerd store reports the same digest as
+      14.4 GB locally — a snapshotter accounting difference; the CI overlay2 measure is the
+      authoritative one for the gate. A derived ENV-only layer adds zero bytes.
 - [x] Process **exits 0** on success (and on partial failure). — enforced in `app/main.py`
       (T081) + unit test T075; verified in the end-to-end run.
 - [x] All four styles (`formal`, `sarcastic`, `humorous_tech`, `humorous_non_tech`) produce

@@ -102,9 +102,11 @@ class Settings(BaseSettings):
 
     # --- Synthesis / generation ---
     max_new_tokens: int = Field(
-        default=4096,
+        default=8192,
         description="Maximum tokens generated per caption (reasoning VLMs spend "
-        "tokens on thinking before the tagged caption).",
+        "tokens on thinking before the tagged caption). 4096 truncated real "
+        "reasoning output mid-thought (finish_reason='length'), costing a full "
+        "retry; 8192 clears the common case on the first attempt.",
     )
     synthesis_max_attempts: int = Field(
         default=3,
@@ -146,6 +148,13 @@ class Settings(BaseSettings):
     total_runtime_budget_s: float = Field(
         default=600.0,
         description="Hard total runtime budget for the whole run (10 min).",
+    )
+    budget_reserve_s: float = Field(
+        default=120.0,
+        description="Stop STARTING new tasks once elapsed exceeds "
+        "total_runtime_budget_s minus this reserve, so the in-flight task can "
+        "finish and the process exits 0 before the harness kills the container "
+        "(a killed container exits non-zero and writes nothing further).",
     )
 
 
