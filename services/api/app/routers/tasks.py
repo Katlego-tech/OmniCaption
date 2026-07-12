@@ -12,6 +12,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Response, status
 
 from app.core.config import Settings
 from app.core.deps import get_runner, get_settings, require_user
+from app.core.oracle_build import build_index_from_run
 from app.core.runner import PipelineRunner
 from app.schemas import TaskIn, resolve_host_is_internal
 
@@ -110,7 +111,16 @@ def trigger_run(
     """Launch the pipeline; 409 while a run is already in flight."""
     settings.input_dir.mkdir(parents=True, exist_ok=True)
     settings.output_dir.mkdir(parents=True, exist_ok=True)
-    if not runner.start(settings.run_command(x_fireworks_key)):
+
+    # Best-effort: after a successful run, build the Track 3 oracle index so
+    # search/QA work with no manual step. Needs a Fireworks key (header or env).
+    post_run = None
+    if settings.auto_build_index:
+        key = x_fireworks_key or os.environ.get("FIREWORKS_API_KEY")
+        if key:
+            post_run = lambda: build_index_from_run(settings, key)  # noqa: E731
+
+    if not runner.start(settings.run_command(x_fireworks_key), post_run=post_run):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="A pipeline run is already in progress.",
