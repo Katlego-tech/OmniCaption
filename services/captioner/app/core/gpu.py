@@ -31,24 +31,8 @@ _GFX_TO_HSA_OVERRIDE: dict[str, str] = {
 }
 
 
-def detect_gfx_arch() -> str | None:
-    """Best-effort detection of the active AMD gfx architecture.
-
-    Resolution order:
-        1. ``PYTORCH_ROCM_ARCH`` environment variable (first arch if a list).
-        2. ``rocminfo`` output parsing.
-        3. ``None`` if neither is available (CPU / non-ROCm host).
-
-    Returns:
-        A gfx arch string such as ``"gfx942"``, or ``None``.
-    """
-    env_arch = os.environ.get("PYTORCH_ROCM_ARCH")
-    if env_arch:
-        arch = env_arch.split(";")[0].split(",")[0].strip()
-        if arch:
-            logger.info("gfx arch from PYTORCH_ROCM_ARCH: %s", arch)
-            return arch
-
+def _detect_gfx_from_rocminfo() -> str | None:
+    """Parse the active gfx arch from ``rocminfo`` (the real hardware)."""
     try:
         proc = subprocess.run(
             ["rocminfo"],
@@ -69,6 +53,40 @@ def detect_gfx_arch() -> str | None:
             if candidate.startswith("gfx"):
                 logger.info("gfx arch from rocminfo: %s", candidate)
                 return candidate
+    return None
+
+
+def detect_gfx_arch() -> str | None:
+    """Best-effort detection of the *active* AMD gfx architecture.
+
+    Resolution order:
+        1. ``rocminfo`` — the actual hardware. Authoritative when present.
+        2. ``PYTORCH_ROCM_ARCH`` — but ONLY when it names a single arch.
+        3. ``None`` (CPU / non-ROCm host).
+
+    ``PYTORCH_ROCM_ARCH`` is a build-time *compile-target list*: a multi-arch
+    value like ``"gfx942;gfx1100"`` says nothing about which GPU is actually
+    present, so it must never pick the runtime arch / HSA override. Trusting its
+    first entry forced a ``gfx942`` (CDNA3) override onto a ``gfx1100`` (RDNA3)
+    card, which failed HIP init and silently dropped the pipeline to CPU.
+
+    Returns:
+        A gfx arch string such as ``"gfx942"``, or ``None``.
+    """
+    arch = _detect_gfx_from_rocminfo()
+    if arch:
+        return arch
+
+    env_arch = (os.environ.get("PYTORCH_ROCM_ARCH") or "").strip()
+    if env_arch and ";" not in env_arch and "," not in env_arch:
+        logger.info("gfx arch from PYTORCH_ROCM_ARCH (single-arch): %s", env_arch)
+        return env_arch
+    if env_arch:
+        logger.info(
+            "PYTORCH_ROCM_ARCH=%r is a multi-arch build list; not using it to "
+            "select the active GPU (relying on rocminfo / explicit override).",
+            env_arch,
+        )
     return None
 
 

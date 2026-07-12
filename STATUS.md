@@ -91,6 +91,41 @@ Planning is now self-driven through [SPEC.md](SPEC.md) / [PLAN.md](PLAN.md) / [T
 
 ## 🗒️ Log
 
+- 2026-07-12 — Tumo (via Claude) — **Added [SUBMISSION.md](SUBMISSION.md) — Katlego's exact build/publish/submit checklist.**
+  Copy-paste steps: create a Docker Hub token → add `DOCKERHUB_USERNAME`/`DOCKERHUB_TOKEN` GitHub secrets → run the
+  "Publish captioner image" Action (builds + <10 GB gate + push) → make the repo public → `docker pull` + `smoke.sh`
+  on the gfx1100 notebook → submit the pull URL. Includes the **gfx1100-only fallback** to apply if the image trips
+  the < 10 GB gate. **Nothing is built/pushed yet** — the image does not exist on Docker Hub until Katlego runs the
+  workflow; image size is unknown until that first build measures it.
+- 2026-07-12 — Tumo (via Claude) — **Switched CTranslate2 to the prebuilt ROCm wheel + added a Docker Hub publish workflow.**
+  Decided to stop compiling CTranslate2 from source (slow, fragile, never validated on gfx1100). OpenNMT ships a
+  **prebuilt ROCm wheel built against ROCm 7.2.1 — exactly matching the notebook** — with kernels for gfx942 +
+  gfx1100 already baked in (confirmed via the CT2 `Dockerfile_rocm`). `rocm/pytorch:latest` is ROCm 7.2.4 / py3.12
+  and uses `/opt/venv` (verified via `imagetools inspect`), so the wheel drops in cleanly. **Changes (on PR #36
+  branch):** (1) Dockerfile — replaced the `git clone + cmake + make` compile with `ADD`ing the release zip and
+  `pip install`ing the CPython-matched wheel (installed BEFORE requirements so faster-whisper reuses it, not the
+  PyPI NVIDIA build); dropped the build toolchain (git/cmake/build-essential) for `ffmpeg + libgomp1`. (2) New
+  `.github/workflows/publish-captioner.yml` — manual `workflow_dispatch` that frees runner disk, logs in to Docker
+  Hub (`DOCKERHUB_USERNAME`/`DOCKERHUB_TOKEN` secrets), and runs `build_push.sh` (enforces the strict < 10 GB gate,
+  pushes `docker.io/<user>/omnicaption-captioner:<tag>`). **Why CI, not the notebook:** the notebook's SSL-intercepting
+  proxy (cert names GitHub/Docker/HuggingFace) breaks in-build downloads; GitHub Actions has a clean network.
+  **Remaining before submission:** add the two Docker Hub secrets → run the workflow → make the repo public →
+  `docker pull` on the gfx1100 notebook and run `smoke.sh` for the GPU proof. All 64 captioner tests still pass.
+- 2026-07-12 — Tumo (via Claude) — **Found the REAL cause of the "No SGEMM backend on CPU" crash + targeted gfx1100.**
+  Recon on the AMD notebook shows the box is **gfx1100** (W7900, 48 GB VRAM), not gfx942/MI300. Root cause of
+  Katlego's crash was NOT the prune: `detect_gfx_arch()` read the multi-arch **build-target list**
+  `PYTORCH_ROCM_ARCH="gfx942;gfx1100;..."` and returned its first entry (`gfx942`), so the app forced
+  `HSA_OVERRIDE_GFX_VERSION=9.4.2` (CDNA3) onto the RDNA3 card → HIP init failed → silent CPU fallback →
+  CTranslate2 (HIP-only) had no CPU backend → `No SGEMM backend on CPU`. The earlier failing log shows exactly
+  this (`gfx arch from PYTORCH_ROCM_ARCH: gfx942` / `HSA...9.4.2`). **Fixes (branch `fix/gfx1100-detection-and-prune`):**
+  (1) `app/core/gpu.py` — `detect_gfx_arch()` now prefers **rocminfo** (real hardware); `PYTORCH_ROCM_ARCH` is only
+  used when it names a *single* arch, never a list. (2) Dockerfile — rocBLAS prune keeps **gfx942 + gfx1100**
+  (`! -name '*gfx942*' ! -name '*gfx1100*'`), CTranslate2 built with `-DGPU_TARGETS="gfx942;gfx1100"`, and
+  `PYTORCH_ROCM_ARCH` trimmed to the two supported arches. (3) `smoke.sh` accepts gfx1100 as GPU proof.
+  Immediate unblock without rebuild: `docker run -e OMNICAPTION_GFX_ARCH=gfx1100 -e OMNICAPTION_HSA_OVERRIDE_GFX_VERSION=11.0.0 …`
+  fixes the override, but the CURRENT image still lacks gfx1100 rocBLAS/CTranslate2 kernels — so a **rebuild +
+  `smoke.sh` on the gfx1100 notebook** is required to truly validate (esp. that CTranslate2's `GPU_TARGETS` took).
+  All 64 captioner tests pass. **⚠️ still unmeasured: the two-arch image size vs the < 10 GB gate.**
 - 2026-07-11 — Tumo (via Claude) — **Restored the `FROM scratch` squash + reinstated the prunes (fixes the 23 GB image).**
   Root-caused the 23.1 GB image Katlego measured: PR #33 replaced the `FROM scratch; COPY --from=builder / /`
   final stage with a `FROM rocm/pytorch:latest` runtime + `rm -rf /opt/rocm /opt/venv` + `COPY --from=builder`.
