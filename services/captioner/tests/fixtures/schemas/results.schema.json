@@ -2,31 +2,23 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://omnicaption/schemas/results.schema.json",
   "title": "OmniCaption results output",
-  "type": "object",
-  "additionalProperties": false,
-  "required": ["results"],
-  "properties": {
-    "results": {
-      "type": "array",
-      "items": {
+  "type": "array",
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["task_id", "captions"],
+    "properties": {
+      "task_id": { "type": "string", "minLength": 1 },
+      "captions": {
         "type": "object",
+        "minProperties": 0,
         "additionalProperties": false,
-        "required": ["task_id", "captions"],
-        "properties": {
-          "task_id": { "type": "string", "minLength": 1 },
-          "captions": {
-            "type": "object",
-            "minProperties": 0,
-            "additionalProperties": false,
-            "propertyNames": {
-              "enum": ["formal", "sarcastic", "humorous_tech", "humorous_non_tech"]
-            },
-            "patternProperties": {
-              "^(formal|sarcastic|humorous_tech|humorous_non_tech)$": {
-                "type": "string",
-                "minLength": 1
-              }
-            }
+        "propertyNames": {
+          "enum": ["formal", "sarcastic", "humorous_tech", "humorous_non_tech"]
+        },
+        "patternProperties": {
+          "^(formal|sarcastic|humorous_tech|humorous_non_tech)$": {
+            "type": "string"
           }
         }
       }

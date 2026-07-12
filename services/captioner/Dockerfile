@@ -136,6 +136,14 @@ ENV PATH="/opt/venv/bin:/opt/rocm/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/
     OMNICAPTION_WHISPER_MODEL_SIZE="deepdml/faster-whisper-large-v3-turbo-ct2" \
     PYTHONUNBUFFERED="1"
 
+# GATE: the squashed runtime must import the ENTIRE app under its own
+# PATH/LD_LIBRARY_PATH (the ENV above) — catches venv/rocm layout breaks at
+# BUILD time instead of at judging. Bytecode writing is disabled so the layer
+# stays zero-size. ffmpeg presence is checked too (the audio stage shells out).
+RUN PYTHONDONTWRITEBYTECODE=1 python -c \
+      "import app.main, ctranslate2, faster_whisper, cv2, requests; print('runtime import gate OK')" \
+    && ffmpeg -version > /dev/null
+
 # The eval harness mounts /input and /output at runtime and runs the container
 # with NO extra flags (judging FAQ: "no manual setup", "no private secrets
 # required") — so the Fireworks key must already be inside the image for the

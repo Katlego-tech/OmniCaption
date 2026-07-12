@@ -28,7 +28,7 @@ import numpy as np
 import pytest
 
 from app.core.config import Settings
-from app.core.errors import fallback_caption
+from app.core.errors import fallback_caption, is_fallback_caption
 from app.core.schema import Style
 from app.pipeline.audio import Segment, Transcript
 from app.pipeline.synthesis import CaptionSynthesizer
@@ -164,12 +164,12 @@ def test_live_styles_structural_invariants() -> None:
         segments=[Segment(start=0.0, end=8.0, text=clip["transcript"])],
     )
     captions = synth.generate_for_styles(keyframes, transcript, ALL_STYLES)
-    # generate_for_styles never raises; a `[Fallback]` caption here means the API call failed.
+    # generate_for_styles never raises; a fallback caption here means the API call failed.
 
     assert set(captions) == set(ALL_STYLES)
     for style, caption in captions.items():
         assert caption.strip(), f"{style.value}: empty caption"
         assert "<captionStyle>" not in caption, f"{style.value}: tag leaked into caption"
-        assert "[Fallback]" not in caption, f"{style.value}: API call failed"
+        assert not is_fallback_caption(caption), f"{style.value}: API call failed"
     for a, b in combinations(ALL_STYLES, 2):
         assert captions[a] != captions[b], f"{a.value} and {b.value} produced identical captions"

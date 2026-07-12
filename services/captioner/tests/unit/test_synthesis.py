@@ -7,6 +7,7 @@ import pytest
 import requests
 
 from app.core.config import Settings
+from app.core.errors import is_fallback_caption
 from app.core.schema import Style
 from app.pipeline.audio import Transcript
 from app.pipeline.synthesis import CaptionSynthesizer
@@ -108,7 +109,7 @@ def test_synthesis_fallback_on_api_error(
 
     # generate_for_styles handles exceptions and returns fallback caption
     captions = synth.generate_for_styles(keyframes, transcript, [Style.FORMAL])
-    assert "[Fallback]" in captions[Style.FORMAL]
+    assert is_fallback_caption(captions[Style.FORMAL])
 
 
 def _mock_content(monkeypatch: pytest.MonkeyPatch, content: str, finish_reason: str = "stop"):
@@ -163,7 +164,7 @@ def test_degenerate_caption_falls_back_grounded(
     captions = synth.generate_for_styles(keyframes, transcript, [Style.SARCASTIC])
 
     assert captions[Style.SARCASTIC] != "..."
-    assert "[Fallback]" in captions[Style.SARCASTIC]
+    assert is_fallback_caption(captions[Style.SARCASTIC])
 
 
 def test_short_but_real_caption_is_kept(
@@ -192,7 +193,7 @@ def test_untagged_reasoning_leak_falls_back(
 
     captions = synth.generate_for_styles(keyframes, transcript, [Style.HUMOROUS_NON_TECH])
 
-    assert "[Fallback]" in captions[Style.HUMOROUS_NON_TECH]
+    assert is_fallback_caption(captions[Style.HUMOROUS_NON_TECH])
     assert "Let me think" not in captions[Style.HUMOROUS_NON_TECH]
 
 
