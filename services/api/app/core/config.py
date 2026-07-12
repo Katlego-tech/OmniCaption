@@ -39,6 +39,11 @@ class Settings(BaseSettings):
         default=None,
         description="Full override of the pipeline run command; bypasses Docker when set.",
     )
+    auto_build_index: bool = Field(
+        default=True,
+        description="After a successful run, auto-build the Track 3 oracle index from "
+        "results.json so search/QA work without a manual `oracle.cli build` step.",
+    )
     fireworks_api_url: str = Field(
         default="https://api.fireworks.ai/inference/v1",
         description="Fireworks AI base URL probed by /api/keys/validate.",
