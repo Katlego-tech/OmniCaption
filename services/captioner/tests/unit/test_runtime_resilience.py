@@ -178,7 +178,7 @@ def test_budget_reserve_stops_starting_new_tasks(
 
     def fake_run_task(self: orch.CaptionPipeline, task: Task):  # noqa: ANN202
         clock["now"] += 35.0  # each task consumes 35s
-        return build_result(task.task_id, {s: "real" for s in task.styles}, task.styles)
+        return build_result(task.task_id, dict.fromkeys(task.styles, "real"), task.styles)
 
     monkeypatch.setattr(orch.CaptionPipeline, "_run_task", fake_run_task)
 
