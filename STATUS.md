@@ -91,6 +91,17 @@ Planning is now self-driven through [SPEC.md](SPEC.md) / [PLAN.md](PLAN.md) / [T
 
 ## 🗒️ Log
 
+- 2026-07-12 — Tumo (via Claude) — **Image now 9.67 GB (< 10 GB gate CLEARED) — verified in CI.** Path from 22.1 → 9.67 GB:
+  (1) install CTranslate2 from OpenNMT's prebuilt **ROCm 7.2.1 wheel** (matches the base + gfx1100 notebook; gfx942+gfx1100
+  kernels baked in) instead of compiling; (2) **drop PyTorch** — the app only used it for GPU detection + VRAM reclaim, now
+  torch-free via `ctranslate2.get_cuda_device_count()` + rocminfo — and delete the ROCm libs only torch pulled in; (3) the
+  key fix: `/opt/rocm` is a **symlink**, so `find /opt/rocm …` was silently no-op'ing the `.a` delete and the rocBLAS
+  arch-prune (`readlink -f` fixed it — freed ~9 GB of static archives + the hipBLASLt kernel dir); (4) drop rocfft/rocalution
+  (CT2 doesn't link them); (5) bake **large-v3-turbo** (~1.6 GB vs ~2.9 GB) at near-identical quality. CT2 imports clean; the
+  publish workflow (`.github/workflows/publish-captioner.yml`) enforces the gate and now builds+measures independently of
+  Docker Hub login (pushes only on a successful login). **Remaining = deploy Gemma 4 + submission only** (build/push once the
+  Docker Hub token is valid → make the repo public → `docker pull` + `smoke.sh` on the gfx1100 notebook → submit the pull URL).
+  Also verified end-to-end on CPU: real, frame+audio-grounded captions via Fireworks kimi-k2p6 for both audio and silent clips.
 - 2026-07-12 — Tumo (via Claude) — **Added [SUBMISSION.md](SUBMISSION.md) — Katlego's exact build/publish/submit checklist.**
   Copy-paste steps: create a Docker Hub token → add `DOCKERHUB_USERNAME`/`DOCKERHUB_TOKEN` GitHub secrets → run the
   "Publish captioner image" Action (builds + <10 GB gate + push) → make the repo public → `docker pull` + `smoke.sh`
