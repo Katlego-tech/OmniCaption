@@ -71,26 +71,30 @@ ENV HF_HUB_OFFLINE="1"
 # the GPU via ctranslate2.get_cuda_device_count() and rocminfo.)
 RUN pip uninstall -y torch torchvision torchaudio pytorch-triton-rocm torchao 2>/dev/null || true
 
-# Conservative strip: remove libraries only torch used. KEEP rocBLAS, hipBLAS,
-# hipBLASLt, hipRAND/rocRAND (CTranslate2 links these), the HIP runtime, comgr,
-# HSA and rocm-smi. (hipRAND was needed — build #2 caught its removal.)
-RUN cd /opt/rocm/lib \
-    && rm -rf miopen rccl rocsparse rocsolver rocfft hipfft hipsparse hipsolver \
-              migraphx rocalution rpp \
-    && rm -f libMIOpen*.so* librccl*.so* librocsparse*.so* librocsolver*.so* \
-             librocfft*.so* libhipfft*.so* libhipsparse*.so* libhipsolver*.so* \
-             librocalution*.so* librpp*.so* libmigraphx*.so* \
-    && rm -rf /opt/rocm/lib/llvm /opt/rocm/llvm /opt/rocm/include \
-              /opt/rocm/share/doc /opt/rocm/share/man /opt/rocm/lib/cmake /opt/rocm/.info \
-    && find /opt/rocm -name "*.a" -delete \
-    && find / -type d -name "__pycache__" -prune -exec rm -rf {} + \
-    && rm -rf /root/.cache/*
+# CRITICAL: /opt/rocm is a SYMLINK to /opt/rocm-7.2.4, and `find /opt/rocm ...`
+# does NOT follow it — so an earlier `.a` delete and the rocBLAS arch-prune
+# silently no-op'd (the image was stuck at 15 GB). Resolve the real path first.
+# We KEEP everything rocBLAS/CTranslate2 links (rocblas, rocsolver, rocrand,
+# rocsparse, rocroller, the HIP runtime, comgr, HSA) and delete the giants CT2
+# never uses: static archives (~4.7 GB), the hipBLASLt kernel dir (~4.5 GB; CT2
+# uses rocBLAS, not hipBLASLt), MIVisionX/hiptensor/profilers, and the dev SDK.
+RUN ROCM="$(readlink -f /opt/rocm)" && cd "$ROCM/lib" \
+    && rm -rf hipblaslt hipsparselt miopen rccl migraphx rpp \
+              rocprofiler rocprofiler-sdk rocprofiler-systems rocprofiler-register \
+    && rm -f *.a \
+    && rm -f libMIOpen*.so* librccl*.so* libmigraphx*.so* librpp*.so* \
+             libopenvx*.so* libvx_*.so* libvxu*.so* libhiptensor*.so* \
+             libhipsparselt*.so* librocprof*.so* librocprofiler*.so* \
+    && rm -rf "$ROCM/lib/llvm" "$ROCM/llvm" "$ROCM/include" \
+              "$ROCM/share/doc" "$ROCM/share/man" "$ROCM/lib/cmake" "$ROCM/.info" \
+    ; find / -xdev -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null ; rm -rf /root/.cache/* ; true
 
-# ---- Keep only the target arches' rocBLAS kernels ---------------------------
-# rocBLAS/Tensile ships precompiled GEMM kernels for every gfx arch. We keep the
-# two arches the pipeline actually runs on — MI300 (gfx942) and the W7900/RX7900
-# dev+notebook box (gfx1100) — and delete the rest. Arch-agnostic indices are kept.
-RUN find /opt/rocm -type f -path '*/rocblas/library/*' -name '*gfx*' \
+# ---- Keep only the target arches' rocBLAS kernels (on the RESOLVED path) -----
+# rocBLAS/Tensile ships precompiled GEMM kernels for every gfx arch. Keep the two
+# the pipeline runs on — MI300 (gfx942) and W7900/RX7900 (gfx1100) — delete the
+# rest. Arch-agnostic indices (no gfx tag) are kept.
+RUN ROCM="$(readlink -f /opt/rocm)" \
+    && find "$ROCM" -type f -path '*/rocblas/library/*' -name '*gfx*' \
         ! -name '*gfx942*' ! -name '*gfx1100*' -delete
 
 # ---- Diagnostics (never fail the build): what CT2 links + where the GBs are --
