@@ -50,7 +50,7 @@ def _load_tasks(cfg: Settings) -> list[Task]:
         logger.exception("Whole-document parse of %s failed (%s); salvaging.", path, exc)
 
     try:
-        raw = json.loads(path.read_text(encoding="utf-8"))
+        raw = json.loads(path.read_text(encoding="utf-8-sig"))
     except Exception as exc:  # noqa: BLE001 - unreadable file -> empty batch
         logger.exception("Cannot read %s as JSON: %s", path, exc)
         return []

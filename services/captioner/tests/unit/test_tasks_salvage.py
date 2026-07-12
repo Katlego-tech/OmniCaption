@@ -69,3 +69,18 @@ def test_entry_without_task_id_drops_but_others_survive(tmp_path: Path) -> None:
 @pytest.mark.parametrize("payload", [{"not": "a list"}, "just a string", 42])
 def test_non_list_top_level_still_yields_empty(tmp_path: Path, payload: object) -> None:
     assert app_main._load_tasks(_cfg(tmp_path, payload)) == []
+
+
+def test_utf8_bom_tasks_file_parses(tmp_path: Path) -> None:
+    """A UTF-8 BOM (any Windows-ish tool) must not erase the batch.
+
+    Observed live: a BOM'd tasks.json made json.load raise at char 0 and the
+    run produced zero results.
+    """
+    input_dir = tmp_path / "input"
+    input_dir.mkdir()
+    (input_dir / "tasks.json").write_bytes(b"\xef\xbb\xbf" + json.dumps([GOOD]).encode("utf-8"))
+    cfg = Settings(_env_file=None, input_dir=input_dir, output_dir=tmp_path / "out")
+
+    tasks = app_main._load_tasks(cfg)
+    assert [t.task_id for t in tasks] == ["good"]
