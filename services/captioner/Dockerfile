@@ -50,12 +50,13 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # ---- Model weight cache layer -------------------------------------------------
 # Bake the Whisper weights into HF_HOME while the network is still allowed, so
-# container startup does no model download (<60 s budget). faster-whisper's
-# "large-v3" alias resolves to this repo via huggingface_hub, which finds the
-# baked snapshot in HF_HOME at runtime. This layer is cached independently of
-# the app source, so code edits do not re-download the (~3 GB) weights.
+# container startup does no model download (<60 s budget). We use large-v3-TURBO
+# (~1.6 GB vs ~2.9 GB for large-v3) — the ~1.3 GB saving is what brings the image
+# under the 10 GB gate, at near-identical transcription quality (and the eval
+# clips are largely silent B-roll anyway). The app loads it by the same repo id
+# (OMNICAPTION_WHISPER_MODEL_SIZE below), found offline in this baked cache.
 RUN python -c "import huggingface_hub; \
-               huggingface_hub.snapshot_download('Systran/faster-whisper-large-v3', cache_dir='/opt/hf-cache')"
+               huggingface_hub.snapshot_download('deepdml/faster-whisper-large-v3-turbo-ct2', cache_dir='/opt/hf-cache')"
 
 # Model weights are baked from here on: forbid hub network access at runtime.
 # (The container still uses the network for video downloads and the Fireworks
@@ -71,26 +72,29 @@ ENV HF_HUB_OFFLINE="1"
 # the GPU via ctranslate2.get_cuda_device_count() and rocminfo.)
 RUN pip uninstall -y torch torchvision torchaudio pytorch-triton-rocm torchao 2>/dev/null || true
 
-# Conservative strip: remove libraries only torch used. KEEP rocBLAS, hipBLAS,
-# hipBLASLt, hipRAND/rocRAND (CTranslate2 links these), the HIP runtime, comgr,
-# HSA and rocm-smi. (hipRAND was needed — build #2 caught its removal.)
-RUN cd /opt/rocm/lib \
-    && rm -rf miopen rccl rocsparse rocsolver rocfft hipfft hipsparse hipsolver \
-              migraphx rocalution rpp \
-    && rm -f libMIOpen*.so* librccl*.so* librocsparse*.so* librocsolver*.so* \
-             librocfft*.so* libhipfft*.so* libhipsparse*.so* libhipsolver*.so* \
-             librocalution*.so* librpp*.so* libmigraphx*.so* \
-    && rm -rf /opt/rocm/lib/llvm /opt/rocm/llvm /opt/rocm/include \
-              /opt/rocm/share/doc /opt/rocm/share/man /opt/rocm/lib/cmake /opt/rocm/.info \
-    && find /opt/rocm -name "*.a" -delete \
-    && find / -type d -name "__pycache__" -prune -exec rm -rf {} + \
-    && rm -rf /root/.cache/*
+# CRITICAL: /opt/rocm is a SYMLINK to /opt/rocm-7.2.4, and `find /opt/rocm ...`
+# does NOT follow it — so an earlier `.a` delete and the rocBLAS arch-prune
+# silently no-op'd (the image was stuck at 15 GB). Resolve the real path first.
+# We KEEP everything rocBLAS/CTranslate2 links (rocblas, rocsolver, rocrand,
+# rocsparse, rocroller, the HIP runtime, comgr, HSA) and delete the giants CT2
+# never uses: static archives (~4.7 GB), the hipBLASLt kernel dir (~4.5 GB; CT2
+# uses rocBLAS, not hipBLASLt), MIVisionX/hiptensor/profilers, and the dev SDK.
+RUN ROCM="$(readlink -f /opt/rocm)" && cd "$ROCM/lib" \
+    && rm -rf hipblaslt hipsparselt miopen rccl migraphx rpp rocfft \
+    && rm -f *.a \
+    && rm -f libMIOpen*.so* librccl*.so* libmigraphx*.so* librpp*.so* \
+             libopenvx*.so* libvx_*.so* libvxu*.so* libhiptensor*.so* \
+             libhipsparselt*.so* librocfft*.so* librocalution*.so* \
+    && rm -rf "$ROCM/lib/llvm" "$ROCM/llvm" "$ROCM/include" \
+              "$ROCM/share/doc" "$ROCM/share/man" "$ROCM/lib/cmake" "$ROCM/.info" \
+    ; find / -xdev -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null ; rm -rf /root/.cache/* ; true
 
-# ---- Keep only the target arches' rocBLAS kernels ---------------------------
-# rocBLAS/Tensile ships precompiled GEMM kernels for every gfx arch. We keep the
-# two arches the pipeline actually runs on — MI300 (gfx942) and the W7900/RX7900
-# dev+notebook box (gfx1100) — and delete the rest. Arch-agnostic indices are kept.
-RUN find /opt/rocm -type f -path '*/rocblas/library/*' -name '*gfx*' \
+# ---- Keep only the target arches' rocBLAS kernels (on the RESOLVED path) -----
+# rocBLAS/Tensile ships precompiled GEMM kernels for every gfx arch. Keep the two
+# the pipeline runs on — MI300 (gfx942) and W7900/RX7900 (gfx1100) — delete the
+# rest. Arch-agnostic indices (no gfx tag) are kept.
+RUN ROCM="$(readlink -f /opt/rocm)" \
+    && find "$ROCM" -type f -path '*/rocblas/library/*' -name '*gfx*' \
         ! -name '*gfx942*' ! -name '*gfx1100*' -delete
 
 # ---- Diagnostics (never fail the build): what CT2 links + where the GBs are --
@@ -126,6 +130,7 @@ ENV PATH="/opt/venv/bin:/opt/rocm/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/
     PYTORCH_ROCM_ARCH="gfx942;gfx1100" \
     HF_HOME="/opt/hf-cache" \
     HF_HUB_OFFLINE="1" \
+    OMNICAPTION_WHISPER_MODEL_SIZE="deepdml/faster-whisper-large-v3-turbo-ct2" \
     PYTHONUNBUFFERED="1"
 
 # The eval harness mounts /input and /output at runtime. The synthesis stage

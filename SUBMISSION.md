@@ -98,6 +98,31 @@ Submit the **public Docker Hub pull URL** from Step 3, e.g.
 
 ---
 
+## Captions via Gemma 4 (dedicated Fireworks deployment)
+
+The default VLM is `kimi-k2p6` (serverless — cheap, always on, already proven end-to-end).
+**Gemma 4 is a *dedicated* Fireworks deployment: ~$28/hr, and the hackathon credit is ~$50
+(~1.75 hr).** So treat it like a stopwatch — do all prep first, run in one short batch, undeploy.
+
+**Before deploying Gemma 4 (while it's OFF — free):**
+1. Captioner image built and the pipeline verified with kimi-k2p6 (done).
+2. Final `tasks.json` (every judged clip) staged in `services/api/data/input/`.
+3. `FIREWORKS_API_KEY` in `./.env` (already set; the script reads it, never prints it).
+
+**Live window (aim for minutes):**
+1. Deploy Gemma 4 on Fireworks → copy its deployment model id
+   (looks like `accounts/<account>/deployedModels/<id>`).
+2. Run the batch (auto-pings the deployment first, then runs every clip):
+   ```bash
+   services/captioner/scripts/run_gemma4_batch.sh accounts/<account>/deployedModels/<id>
+   ```
+3. Check the printed `results.json`.
+4. **Undeploy Gemma 4 immediately.**
+
+Only the model id changes — same key, same API URL, same code, both audio and no-audio clips.
+Retries don't add cost (dedicated deployments bill by the hour, not per call). If the judged run
+also uses Gemma 4, it must be **deployed during judging** — coordinate the deploy/undeploy timing.
+
 ## Quick reference — what runs where
 
 | Task | Where | Why |
