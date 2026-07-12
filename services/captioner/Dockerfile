@@ -79,12 +79,11 @@ RUN pip uninstall -y torch torchvision torchaudio pytorch-triton-rocm torchao 2>
 # never uses: static archives (~4.7 GB), the hipBLASLt kernel dir (~4.5 GB; CT2
 # uses rocBLAS, not hipBLASLt), MIVisionX/hiptensor/profilers, and the dev SDK.
 RUN ROCM="$(readlink -f /opt/rocm)" && cd "$ROCM/lib" \
-    && rm -rf hipblaslt hipsparselt miopen rccl migraphx rpp \
-              rocprofiler rocprofiler-sdk rocprofiler-systems rocprofiler-register \
+    && rm -rf hipblaslt hipsparselt miopen rccl migraphx rpp rocfft \
     && rm -f *.a \
     && rm -f libMIOpen*.so* librccl*.so* libmigraphx*.so* librpp*.so* \
              libopenvx*.so* libvx_*.so* libvxu*.so* libhiptensor*.so* \
-             libhipsparselt*.so* librocprof*.so* librocprofiler*.so* \
+             libhipsparselt*.so* librocfft*.so* librocalution*.so* \
     && rm -rf "$ROCM/lib/llvm" "$ROCM/llvm" "$ROCM/include" \
               "$ROCM/share/doc" "$ROCM/share/man" "$ROCM/lib/cmake" "$ROCM/.info" \
     ; find / -xdev -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null ; rm -rf /root/.cache/* ; true
