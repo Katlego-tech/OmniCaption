@@ -91,6 +91,24 @@ Planning is now self-driven through [SPEC.md](SPEC.md) / [PLAN.md](PLAN.md) / [T
 
 ## 🗒️ Log
 
+- 2026-07-12 (23:10, T-50min) — Tumo (via Claude) — **Submission hardening sprint against the judging FAQ** (PR #45,
+  image rebuilt+pushed from the branch). Judge runs the container BARE (no env, no setup), so: (1) **Fireworks key
+  bake** — ARG/ENV in the Dockerfile + workflow secret forwarding; without a key every style falls back → accuracy
+  gate fail. ⚠️ **STILL PENDING: the final key-layer push (needs docker login + a fresh disposable key — user action).**
+  (2) **Parallel style synthesis** — measured 136–428 s/clip sequential (Fireworks latency is identical on the judge's
+  MI300); now 4 concurrent calls → 42–87 s live. (3) **Kill-safe output** — results.json pre-written with every task
+  and atomically refreshed per task; OUTPUT_MISSING/MISSING_TASKS impossible mid-batch. (4) **Budget reserve** (120 s)
+  so the run exits 0 before any harness kill. (5) **tasks.json per-entry salvage + UTF-8-BOM tolerance** — one bad
+  entry no longer erases the batch (was: whole-document validation → `[]`). (6) **max_new_tokens 8192** — kills the
+  observed finish_reason=length retry (~60 s each). (7) **De-flagged fallback captions** (no "[Fallback]…" meta-text).
+  (8) **Contract truth**: docs/16 + fixture schema claimed `{"results":[…]}`; verified against independent Track 2
+  repos (FourFaced, textsink) that the harness takes the BARE ARRAY the code always wrote — docs fixed, schema
+  fixtures now wired to the real writer by a contract test. Validation: **full 8-clip public FAQ set run end-to-end —
+  32/32 captions present, zero empty, zero leaks**; suite 64 → 83 green; multi-agent audit (5 inspectors + adversarial
+  verify) confirms the remaining risk list. Also produced the **submission demo video** (dead 2-min wait clipped,
+  noisy audio fully muted, narrated in Tumo's ElevenLabs cloned voice) → `OmniCaption-demo-final.mp4`, and a 12-page
+  **presentation PDF** from the demo screenshots → `OmniCaption-presentation.pdf`.
+
 - 2026-07-12 — Tumo (via Claude) — **Image now 9.67 GB (< 10 GB gate CLEARED) — verified in CI.** Path from 22.1 → 9.67 GB:
   (1) install CTranslate2 from OpenNMT's prebuilt **ROCm 7.2.1 wheel** (matches the base + gfx1100 notebook; gfx942+gfx1100
   kernels baked in) instead of compiling; (2) **drop PyTorch** — the app only used it for GPU detection + VRAM reclaim, now
