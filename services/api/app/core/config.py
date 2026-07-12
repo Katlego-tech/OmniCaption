@@ -127,7 +127,7 @@ class Settings(BaseSettings):
         """Path to the pipeline output file."""
         return self.output_dir / "results.json"
 
-    def run_command(self) -> list[str] | str:
+    def run_command(self, fireworks_api_key: str | None = None) -> list[str] | str:
         """The pipeline command: CAPTIONER_CMD verbatim, or the default docker run.
 
         A string is returned for overrides (the OS command-line parser splits it,
@@ -139,7 +139,7 @@ class Settings(BaseSettings):
         import os
 
         env_flags: list[str] = []
-        fw_key = os.environ.get("FIREWORKS_API_KEY", "")
+        fw_key = fireworks_api_key or os.environ.get("FIREWORKS_API_KEY", "")
         if fw_key:
             env_flags += ["-e", f"FIREWORKS_API_KEY={fw_key}"]
         for key, val in os.environ.items():
