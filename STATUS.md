@@ -91,6 +91,12 @@ Planning is now self-driven through [SPEC.md](SPEC.md) / [PLAN.md](PLAN.md) / [T
 
 ## 🗒️ Log
 
+- 2026-07-12 — Tumo (via Claude) — **Added [SUBMISSION.md](SUBMISSION.md) — Katlego's exact build/publish/submit checklist.**
+  Copy-paste steps: create a Docker Hub token → add `DOCKERHUB_USERNAME`/`DOCKERHUB_TOKEN` GitHub secrets → run the
+  "Publish captioner image" Action (builds + <10 GB gate + push) → make the repo public → `docker pull` + `smoke.sh`
+  on the gfx1100 notebook → submit the pull URL. Includes the **gfx1100-only fallback** to apply if the image trips
+  the < 10 GB gate. **Nothing is built/pushed yet** — the image does not exist on Docker Hub until Katlego runs the
+  workflow; image size is unknown until that first build measures it.
 - 2026-07-12 — Tumo (via Claude) — **Switched CTranslate2 to the prebuilt ROCm wheel + added a Docker Hub publish workflow.**
   Decided to stop compiling CTranslate2 from source (slow, fragile, never validated on gfx1100). OpenNMT ships a
   **prebuilt ROCm wheel built against ROCm 7.2.1 — exactly matching the notebook** — with kernels for gfx942 +
