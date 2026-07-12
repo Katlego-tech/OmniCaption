@@ -71,13 +71,15 @@ ENV HF_HUB_OFFLINE="1"
 # the GPU via ctranslate2.get_cuda_device_count() and rocminfo.)
 RUN pip uninstall -y torch torchvision torchaudio pytorch-triton-rocm torchao 2>/dev/null || true
 
+# Conservative strip: remove libraries only torch used. KEEP rocBLAS, hipBLAS,
+# hipBLASLt, hipRAND/rocRAND (CTranslate2 links these), the HIP runtime, comgr,
+# HSA and rocm-smi. (hipRAND was needed — build #2 caught its removal.)
 RUN cd /opt/rocm/lib \
     && rm -rf miopen rccl rocsparse rocsolver rocfft hipfft hipsparse hipsolver \
-              migraphx rocalution rpp hipblaslt \
+              migraphx rocalution rpp \
     && rm -f libMIOpen*.so* librccl*.so* librocsparse*.so* librocsolver*.so* \
              librocfft*.so* libhipfft*.so* libhipsparse*.so* libhipsolver*.so* \
-             librocrand*.so* libhiprand*.so* librocalution*.so* librpp*.so* \
-             libhipblaslt*.so* libmigraphx*.so* \
+             librocalution*.so* librpp*.so* libmigraphx*.so* \
     && rm -rf /opt/rocm/lib/llvm /opt/rocm/llvm /opt/rocm/include \
               /opt/rocm/share/doc /opt/rocm/share/man /opt/rocm/lib/cmake /opt/rocm/.info \
     && find /opt/rocm -name "*.a" -delete \
@@ -87,19 +89,18 @@ RUN cd /opt/rocm/lib \
 # ---- Keep only the target arches' rocBLAS kernels ---------------------------
 # rocBLAS/Tensile ships precompiled GEMM kernels for every gfx arch. We keep the
 # two arches the pipeline actually runs on — MI300 (gfx942) and the W7900/RX7900
-# dev+notebook box (gfx1100) — and delete the rest (~1-3 GB). Files without a gfx
-# tag (arch-agnostic indices) are kept.
+# dev+notebook box (gfx1100) — and delete the rest. Arch-agnostic indices are kept.
 RUN find /opt/rocm -type f -path '*/rocblas/library/*' -name '*gfx*' \
         ! -name '*gfx942*' ! -name '*gfx1100*' -delete
 
-# ---- Prove CTranslate2 still loads, then show the size breakdown -------------
-# `import ctranslate2` resolves CT2's load-time shared-lib deps (rocBLAS, HIP, …);
-# if the strip above removed one CT2 actually links, the build FAILS HERE in CI
-# instead of silently shipping a broken image. The du dump shows where any
-# remaining GBs live so we can prune further if still over the gate.
-RUN python -c "import ctranslate2; print('CT2 import OK', ctranslate2.__version__)" \
-    && echo "== BIGGEST DIRS ==" \
-    && du -shx /opt/* /usr/* /root 2>/dev/null | sort -rh | head -25 || true
+# ---- Diagnostics (never fail the build): what CT2 links + where the GBs are --
+RUN { echo "== CT2 .so deps =="; \
+      ldd "$(python -c 'import ctranslate2,glob,os; d=os.path.dirname(ctranslate2.__file__); print(glob.glob(d+"/_ext*.so")[0])')" 2>&1 | grep -iE 'rocm|hip|blas|rand|not found'; \
+      echo "== BIGGEST DIRS =="; du -shx /opt/* /usr/* /root 2>/dev/null | sort -rh | head -25; \
+      echo "== /opt/rocm/lib =="; du -shx /opt/rocm/lib/* 2>/dev/null | sort -rh | head -30; } ; true
+
+# ---- GATE: CTranslate2 MUST import (NO '|| true' — fails the build if broken) -
+RUN python -c "import ctranslate2; print('CT2 import OK', ctranslate2.__version__)"
 
 # ---- Application source -------------------------------------------------------
 # Placed after heavy layers so minor code modifications do not invalidate the build cache
