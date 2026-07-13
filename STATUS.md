@@ -103,8 +103,12 @@ Planning is now self-driven through [SPEC.md](SPEC.md) / [PLAN.md](PLAN.md) / [T
   hard_exit_reserve_s` (new setting, default 30 s) even mid-task, with the pre-written/incrementally-flushed
   results.json already on disk; (2) download loop now enforces `timeout_s` as a *total* cap and deletes the
   partial file; (3) ffmpeg gets subprocess timeouts (120 s extract / 30 s silent-wav). Suite 83 → 87 green
-  (+2 watchdog, +2 stage-cap tests), ruff check + format clean. **Next: rebuild `Dockerfile.submit` (overlays
-  app/ — picks these up automatically), push with the baked key, resubmit.**
+  (+2 watchdog, +2 stage-cap tests), ruff check + format clean. **Shipped via the publish workflow** (run
+  29227175917, dispatched from this branch): `FIREWORKS_API_KEY` repo secret set (fresh disposable key — the
+  21:32 image had NO baked key, which would have failed the accuracy gate next), image rebuilt with the fixes +
+  baked key, **9.67 GB < 10 GB gate, pushed to `docker.io/katlegotech/omnicaption-captioner:latest`**
+  (2026-07-13 ~06:00 UTC). **Next: resubmit the pull URL ONCE; rotate the Fireworks key after judging; merge
+  PR #45.**
 
 - 2026-07-12 (23:10, T-50min) — Tumo (via Claude) — **Submission hardening sprint against the judging FAQ** (PR #45,
   image rebuilt+pushed from the branch). Judge runs the container BARE (no env, no setup), so: (1) **Fireworks key
