@@ -99,6 +99,13 @@ class Settings(BaseSettings):
         default=8,
         description="Cap on keyframes fed to the VLM (controls prompt size/latency).",
     )
+    keyframe_grid: bool = Field(
+        default=True,
+        description="Send keyframes as ONE timestamp-labeled grid image instead "
+        "of N separate payloads: ~80% smaller upload, one visual pass, and "
+        "explicit chronology for the VLM. Set 0 for the legacy per-frame "
+        "payload.",
+    )
 
     # --- Synthesis / generation ---
     max_new_tokens: int = Field(

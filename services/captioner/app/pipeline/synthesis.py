@@ -87,22 +87,54 @@ class CaptionSynthesizer:
         Returns:
             A chat-completions-ready message list.
         """
-        from app.pipeline.vision import encode_image_to_base64
+        from app.pipeline.vision import encode_image_to_base64, stitch_keyframe_grid
 
         user_content: list[dict[str, Any]] = []
 
-        # 1. Images first
-        for kf in keyframes:
+        # 1. Images first — one labeled grid by default (smaller payload, one
+        # visual pass, explicit chronology); per-frame payloads as fallback.
+        grid = None
+        if self._cfg.keyframe_grid and keyframes:
             try:
-                b64 = encode_image_to_base64(kf.image)
+                grid = stitch_keyframe_grid(keyframes)
+            except Exception as exc:  # noqa: BLE001 - fall back to per-frame images
+                logger.warning("Keyframe grid stitching failed, using per-frame: %s", exc)
+        if grid is not None:
+            try:
+                b64 = encode_image_to_base64(grid)
                 user_content.append(
                     {
                         "type": "image_url",
                         "image_url": {"url": f"data:image/jpeg;base64,{b64}"},
                     }
                 )
-            except Exception as exc:
-                logger.warning("Failed to encode keyframe to base64: %s", exc)
+                user_content.append(
+                    {
+                        "type": "text",
+                        "text": (
+                            f"The image is a grid of {len(keyframes)} keyframes from ONE "
+                            "video, in temporal order (left-to-right, top-to-bottom); each "
+                            "tile is labeled with its timestamp. Describe the video, never "
+                            "the grid itself, and never quote the tile timestamps (no "
+                            "'t=3s') in the caption."
+                        ),
+                    }
+                )
+            except Exception as exc:  # noqa: BLE001 - fall back to per-frame images
+                logger.warning("Failed to encode keyframe grid: %s", exc)
+                grid = None
+        if grid is None:
+            for kf in keyframes:
+                try:
+                    b64 = encode_image_to_base64(kf.image)
+                    user_content.append(
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": f"data:image/jpeg;base64,{b64}"},
+                        }
+                    )
+                except Exception as exc:  # noqa: BLE001 - skip unencodable frames
+                    logger.warning("Failed to encode keyframe to base64: %s", exc)
 
         # 2. Transcript text
         transcript_block = transcript_text.strip() or "(no speech detected)"

@@ -95,7 +95,7 @@ def test_style_personas_are_distinct() -> None:
 
 @pytest.mark.regression
 def test_prompt_assembly_shape_per_clip(synth: CaptionSynthesizer) -> None:
-    """Images come first (one part per keyframe), then exactly one transcript block."""
+    """One stitched grid image + its layout note first, then the transcript block."""
     for clip_id, clip in _clips().items():
         messages = synth._build_messages(
             _keyframes(clip["keyframes"]), clip["transcript"], Style.FORMAL
@@ -104,12 +104,15 @@ def test_prompt_assembly_shape_per_clip(synth: CaptionSynthesizer) -> None:
         image_parts = [p for p in user_parts if p["type"] == "image_url"]
         text_parts = [p for p in user_parts if p["type"] == "text"]
 
-        assert len(image_parts) == clip["keyframes"], clip_id
-        assert len(text_parts) == 1, clip_id
-        assert user_parts[-1]["type"] == "text", f"{clip_id}: transcript must come after images"
+        n_images = 1 if clip["keyframes"] else 0
+        assert len(image_parts) == n_images, clip_id
+        if n_images:
+            grid_note = text_parts[0]["text"]
+            assert f"grid of {clip['keyframes']} keyframes" in grid_note, clip_id
+        assert user_parts[-1]["type"] == "text", f"{clip_id}: transcript must come last"
 
         expected_block = clip["transcript"].strip() or "(no speech detected)"
-        assert text_parts[0]["text"] == f"Transcript:\n{expected_block}", clip_id
+        assert text_parts[-1]["text"] == f"Transcript:\n{expected_block}", clip_id
 
 
 # --- 3. Deterministic fallback captions over the frozen evidence -----------------

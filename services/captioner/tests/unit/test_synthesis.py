@@ -39,12 +39,15 @@ def test_modality_order_and_pmp(settings_with_key: Settings) -> None:
     assert "meticulous archival captioner" in system_content
     assert "<captionStyle>" in system_content
 
+    # Images (stitched grid + layout note) come before the transcript text.
     user_content = messages[1]["content"]
-    assert len(user_content) == 2
+    assert len(user_content) == 3
     assert user_content[0]["type"] == "image_url"
     assert "data:image/jpeg;base64" in user_content[0]["image_url"]["url"]
     assert user_content[1]["type"] == "text"
-    assert "Transcript:\nTest transcript" in user_content[1]["text"]
+    assert "grid" in user_content[1]["text"].lower()
+    assert user_content[2]["type"] == "text"
+    assert "Transcript:\nTest transcript" in user_content[2]["text"]
 
     # Test sarcastic style (no PMP in system message)
     messages_sarcastic = synth._build_messages(keyframes, "Test transcript", Style.SARCASTIC)
@@ -56,9 +59,9 @@ def test_modality_order_and_pmp(settings_with_key: Settings) -> None:
     assert "dry, unimpressed critic" in system_content_sarc
 
     user_content_sarc = messages_sarcastic[1]["content"]
-    assert len(user_content_sarc) == 2
+    assert len(user_content_sarc) == 3
     assert user_content_sarc[0]["type"] == "image_url"
-    assert user_content_sarc[1]["type"] == "text"
+    assert user_content_sarc[-1]["type"] == "text"
 
 
 def test_synthesis_success(monkeypatch: pytest.MonkeyPatch, settings_with_key: Settings) -> None:

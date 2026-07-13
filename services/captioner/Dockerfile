@@ -134,6 +134,9 @@ ENV PATH="/opt/venv/bin:/opt/rocm/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/
     HF_HOME="/opt/hf-cache" \
     HF_HUB_OFFLINE="1" \
     OMNICAPTION_WHISPER_MODEL_SIZE="deepdml/faster-whisper-large-v3-turbo-ct2" \
+    # CUB caching allocator: ROCm's default allocation policy can fragment and
+    # page-fault under repeated transcriptions (CTranslate2#2021, exit 134).
+    CT2_CUDA_ALLOCATOR="cub_caching" \
     PYTHONUNBUFFERED="1"
 
 # GATE: the squashed runtime must import the ENTIRE app under its own
