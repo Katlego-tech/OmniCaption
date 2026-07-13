@@ -69,11 +69,22 @@ else
   echo "== running on CPU (no /dev/kfd) — GPU proof will NOT be validated =="
 fi
 
+# Only pass the key through when the caller actually set one. Passing an
+# EMPTY -e FIREWORKS_API_KEY= would override the key BAKED into the image and
+# sabotage the judge-path (bare-run) smoke: the judged run has no -e at all.
+key_flags=()
+if [ -n "${FIREWORKS_API_KEY:-}" ]; then
+  key_flags=(-e "FIREWORKS_API_KEY=${FIREWORKS_API_KEY}")
+else
+  echo "== BARE RUN (no FIREWORKS_API_KEY in env) — exercising the judge path:"
+  echo "   real captions appear ONLY if the image has a baked key =="
+fi
+
 log="$work/run.log"
 set +e
 # shellcheck disable=SC2086
 docker run --rm $gpu_flags \
-  -e FIREWORKS_API_KEY="${FIREWORKS_API_KEY:-}" \
+  "${key_flags[@]}" \
   -v "$work/input:/input" -v "$work/output:/output" \
   "$IMAGE" > "$log" 2>&1
 rc=$?

@@ -59,15 +59,20 @@ A **JSON array** of task objects.
 
 ## Output — `/output/results.json`
 
-A **JSON object** with a `results` array — one entry per input task, in input order.
+A **JSON array** of result objects — one entry per input task, in input order.
+
+> **Corrected 2026-07-12.** An earlier revision of this document wrapped the array in a
+> `{"results": [...]}` object. That shape appears nowhere outside this repo: the shipped code has
+> always written a bare array, and independent Track 2 submissions (e.g. FourFaced, textsink)
+> document the identical bare-array contract against the same harness. The doc was the drift, not
+> the code.
 
 ### Field table
 
 | Field | Type | Required | Rule |
 | --- | --- | --- | --- |
-| `results` | array | yes | One `ClipResult` per input task. `len == len(tasks)`. |
-| `results[].task_id` | string | yes | Echoes the input `task_id`. |
-| `results[].captions` | object | yes | Map `style_key → caption`. Keys ⊆ known styles; equals the task's requested+known styles. Each value non-empty. |
+| `[i].task_id` | string | yes | Echoes the input `task_id`. |
+| `[i].captions` | object | yes | Map `style_key → caption`. Keys ⊆ known styles; equals the task's requested+known styles. An empty string is the explicit "no caption" sentinel for a failed pair (scores 0; never omit the key). |
 
 ### JSON Schema (output)
 
@@ -76,31 +81,23 @@ A **JSON object** with a `results` array — one entry per input task, in input 
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://omnicaption/schemas/results.schema.json",
   "title": "OmniCaption results output",
-  "type": "object",
-  "additionalProperties": false,
-  "required": ["results"],
-  "properties": {
-    "results": {
-      "type": "array",
-      "items": {
+  "type": "array",
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["task_id", "captions"],
+    "properties": {
+      "task_id": { "type": "string", "minLength": 1 },
+      "captions": {
         "type": "object",
+        "minProperties": 0,
         "additionalProperties": false,
-        "required": ["task_id", "captions"],
-        "properties": {
-          "task_id": { "type": "string", "minLength": 1 },
-          "captions": {
-            "type": "object",
-            "minProperties": 0,
-            "additionalProperties": false,
-            "propertyNames": {
-              "enum": ["formal", "sarcastic", "humorous_tech", "humorous_non_tech"]
-            },
-            "patternProperties": {
-              "^(formal|sarcastic|humorous_tech|humorous_non_tech)$": {
-                "type": "string",
-                "minLength": 1
-              }
-            }
+        "propertyNames": {
+          "enum": ["formal", "sarcastic", "humorous_tech", "humorous_non_tech"]
+        },
+        "patternProperties": {
+          "^(formal|sarcastic|humorous_tech|humorous_non_tech)$": {
+            "type": "string"
           }
         }
       }

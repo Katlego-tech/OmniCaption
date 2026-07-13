@@ -1,12 +1,46 @@
 # OmniCaption — Build, Publish & Submit (for Katlego)
 
 This is the **exact, in-order** checklist to build the AMD/ROCm captioner image, push it
-to Docker Hub, prove it runs on the GPU, and submit. No local Docker build needed — GitHub
-builds it for you. Just follow the steps top to bottom.
+to Docker Hub, prove it runs on the GPU, and submit.
 
-> Status of the code: the gfx1100 fix + prebuilt-CTranslate2-ROCm-wheel Dockerfile + the
-> publish workflow are all on `main`. You do NOT need to touch the Dockerfile unless step 3
-> tells you to.
+> **Status 2026-07-12 evening:** Steps 1–4 below are ✅ DONE — the image is built (9.67 GB,
+> gate passed in CI), pushed to **`docker.io/katlegotech/omnicaption-captioner:latest`**, and
+> the Docker Hub repo is public. **What remains, in order: Step 4b (bake the Fireworks key —
+> NEW, judging-critical), Step 5 (GPU smoke re-run), Step 6 (submit the form).**
+
+---
+
+## Step 4b — Bake the Fireworks key (NEW — judging-critical)
+
+The judging FAQ says the container is run **bare**: _"Run the container without local files
+or manual setup"_, _"No private secrets are required."_ Our synthesis stage needs
+`FIREWORKS_API_KEY` — without it in the image, **every caption falls back to generic text
+and the accuracy gate fails.** Team decision (Tumo, 2026-07-12): bake a **fresh, disposable**
+key into the public image and rotate it after judging.
+
+1. Fireworks dashboard → create a **new** API key (name it `omnicaption-judging`).
+2. On a docker-logged-in machine (an account that can push to `katlegotech/…`), save the key
+   to a file `keyfile` (no trailing newline problems: `printf '%s' 'fw_...' > keyfile`), then:
+
+   ```bash
+   # A derived, ENV-only image: zero new blobs, push takes seconds, the CI-measured
+   # 9.67 GB stays valid. Dockerfile content:
+   #   FROM docker.io/katlegotech/omnicaption-captioner:latest
+   #   ARG FIREWORKS_API_KEY
+   #   ENV FIREWORKS_API_KEY="${FIREWORKS_API_KEY}" OMNICAPTION_DOWNLOAD_TIMEOUT_S=180
+   docker build --build-arg FIREWORKS_API_KEY="$(cat keyfile)" \
+     -t docker.io/katlegotech/omnicaption-captioner:latest <dir-with-that-Dockerfile>
+   docker push docker.io/katlegotech/omnicaption-captioner:latest
+   rm keyfile
+   ```
+
+   (Alternative without local docker: add the key as a `FIREWORKS_API_KEY` **repo secret**
+   — needs repo admin — and re-run the publish workflow; the workflow + Dockerfile on the
+   fix branch forward it as a build-arg. Full rebuild, ~20–30 min.)
+3. **After judging:** delete the key in the Fireworks dashboard.
+
+`OMNICAPTION_DOWNLOAD_TIMEOUT_S=180` rides along because the judged clips are 1440p–4K and
+a real run lost every caption when a 4K download hit the code's old 60 s default.
 
 ---
 

@@ -91,6 +91,69 @@ Planning is now self-driven through [SPEC.md](SPEC.md) / [PLAN.md](PLAN.md) / [T
 
 ## 🗒️ Log
 
+- 2026-07-13 (T-50min) — Tumo (via Claude) — **Final pre-deadline image: keyframe grid + allocator fix** (research
+  report Strategy B adopted; A/finetune explicitly deferred — cannot land in the window). One timestamp-labeled
+  2×4 grid replaces 8 separate base64 payloads per VLM call (~80% smaller upload, one visual pass, explicit
+  chronology); grid note forbids quoting tile timestamps; per-frame fallback kept (`OMNICAPTION_KEYFRAME_GRID=0`).
+  `CT2_CUDA_ALLOCATOR=cub_caching` baked (CTranslate2#2021 ROCm fragmentation crash). Suite 97 green, ruff clean;
+  live 2-clip validation shows temporally-aware grounded captions. Also shipped `tools/dataset/` (Pexels corpus +
+  Fireworks-teacher generator, resumable) for the post-deadline finetune decision — NOT for this window; Katlego's
+  parallel dataset attempt on his laptop stood down (his script hit a non-JSON Fireworks response = missing key in
+  that venv). Score history today: 0.16 → 0.37 (rank 93 → 88) → grid image publishing as run 29247414017.
+  Submission form: `docker.io/katlegotech/omnicaption-captioner:latest` (tag unchanged; user confirmed submitted).
+
+- 2026-07-13 — Tumo (via Claude) — **Score-recovery sprint: 0.16 → target max (coverage + style quality; tests-first).**
+  Diagnosis: the scored run banked format/reliability points but lost content — the judged image produced
+  fallback/empty captions (keyless image and/or the sequential-task cutoff emptying most of ~12 hidden clips at
+  1.5–3 min each). Fixes: (1) **task-level concurrency** (`task_concurrency`, default 4) — downloads/vision/remote
+  synthesis overlap across clips; kill-safe flush now emits a complete input-ordered snapshot per completion
+  (thread-safe, placeholders for pending); (2) **Whisper loads once per run** behind a lock (per-task load/unload
+  was VRAM handoff for the retired local-Gemma design; synthesis is remote); (3) **deadline-gated retries** — past
+  the batch cutoff each style gets ONE attempt (one attempt for every clip beats three for a few); (4) **style
+  prompts few-shot calibrated** with the judge's retired reference captions + hard grounding rule (name concrete
+  visible subjects); goldens regenerated. Suite 87 → **92 green**, ruff clean. **Live validation (dev image, all 8
+  public clips, bare-style run): 32/32 captions, zero empty, zero fallbacks, 429 s wall on a home CPU box** —
+  captions are specific (reads TOKYU signage, lane numbers, green onions) and land the reference tone per style.
+  Rejected (for now) the report's finetuning pivot — unnecessary while coverage+key+prompts were the bottleneck;
+  notebook is better spent GPU-smoke-testing the published image. Next: publish via workflow → resubmit once.
+
+- 2026-07-13 — Tumo (via Claude) — **Judge returned TIMEOUT (no score) — root-caused + fixed (tests-first, on
+  `fix/judge-run-key-and-uhd-timeout`, uncommitted pending review).** Per the FAQ, TIMEOUT means the *container*
+  outlived the judge's wall clock — a valid results.json on disk does not rescue a killed run. The hole: the
+  budget guard only stops *starting* tasks at `budget − reserve` (480 s); a task already in flight is unbounded —
+  download (180 s socket timeout bounds only gaps *between* bytes, not total time) + un-timeouted ffmpeg + Whisper
+  + UHD keyframe decode + synthesis worst-case 3 attempts × 120 s — so one slow hidden clip pushes the run past
+  600 s and the judge kills it. (Docker Hub confirms the hardened image WAS pushed 2026-07-12 21:32 UTC, so the
+  judge ran the fixed code — the in-flight overshoot is the remaining cause.) Fixes: (1) **hard wall-clock
+  watchdog** — pipeline runs on a daemon thread; the entrypoint force-exits 0 at `total_runtime_budget_s −
+  hard_exit_reserve_s` (new setting, default 30 s) even mid-task, with the pre-written/incrementally-flushed
+  results.json already on disk; (2) download loop now enforces `timeout_s` as a *total* cap and deletes the
+  partial file; (3) ffmpeg gets subprocess timeouts (120 s extract / 30 s silent-wav). Suite 83 → 87 green
+  (+2 watchdog, +2 stage-cap tests), ruff check + format clean. **Shipped via the publish workflow** (run
+  29227175917, dispatched from this branch): `FIREWORKS_API_KEY` repo secret set (fresh disposable key — the
+  21:32 image had NO baked key, which would have failed the accuracy gate next), image rebuilt with the fixes +
+  baked key, **9.67 GB < 10 GB gate, pushed to `docker.io/katlegotech/omnicaption-captioner:latest`**
+  (2026-07-13 ~06:00 UTC). **Next: resubmit the pull URL ONCE; rotate the Fireworks key after judging; merge
+  PR #45.**
+
+- 2026-07-12 (23:10, T-50min) — Tumo (via Claude) — **Submission hardening sprint against the judging FAQ** (PR #45,
+  image rebuilt+pushed from the branch). Judge runs the container BARE (no env, no setup), so: (1) **Fireworks key
+  bake** — ARG/ENV in the Dockerfile + workflow secret forwarding; without a key every style falls back → accuracy
+  gate fail. ⚠️ **STILL PENDING: the final key-layer push (needs docker login + a fresh disposable key — user action).**
+  (2) **Parallel style synthesis** — measured 136–428 s/clip sequential (Fireworks latency is identical on the judge's
+  MI300); now 4 concurrent calls → 42–87 s live. (3) **Kill-safe output** — results.json pre-written with every task
+  and atomically refreshed per task; OUTPUT_MISSING/MISSING_TASKS impossible mid-batch. (4) **Budget reserve** (120 s)
+  so the run exits 0 before any harness kill. (5) **tasks.json per-entry salvage + UTF-8-BOM tolerance** — one bad
+  entry no longer erases the batch (was: whole-document validation → `[]`). (6) **max_new_tokens 8192** — kills the
+  observed finish_reason=length retry (~60 s each). (7) **De-flagged fallback captions** (no "[Fallback]…" meta-text).
+  (8) **Contract truth**: docs/16 + fixture schema claimed `{"results":[…]}`; verified against independent Track 2
+  repos (FourFaced, textsink) that the harness takes the BARE ARRAY the code always wrote — docs fixed, schema
+  fixtures now wired to the real writer by a contract test. Validation: **full 8-clip public FAQ set run end-to-end —
+  32/32 captions present, zero empty, zero leaks**; suite 64 → 83 green; multi-agent audit (5 inspectors + adversarial
+  verify) confirms the remaining risk list. Also produced the **submission demo video** (dead 2-min wait clipped,
+  noisy audio fully muted, narrated in Tumo's ElevenLabs cloned voice) → `OmniCaption-demo-final.mp4`, and a 12-page
+  **presentation PDF** from the demo screenshots → `OmniCaption-presentation.pdf`.
+
 - 2026-07-12 — Tumo (via Claude) — **Image now 9.67 GB (< 10 GB gate CLEARED) — verified in CI.** Path from 22.1 → 9.67 GB:
   (1) install CTranslate2 from OpenNMT's prebuilt **ROCm 7.2.1 wheel** (matches the base + gfx1100 notebook; gfx942+gfx1100
   kernels baked in) instead of compiling; (2) **drop PyTorch** — the app only used it for GPU detection + VRAM reclaim, now

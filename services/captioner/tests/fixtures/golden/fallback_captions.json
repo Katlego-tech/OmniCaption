@@ -1,6 +1,6 @@
 {
-  "v1": "[Fallback] Audio mentions 'A chef slices vegetables on a wooden board while explaining the recipe.' and Visual event showing 3 keyframe(s).",
-  "v2": "[Fallback] Visual event showing 5 keyframe(s).",
-  "v3": "[Fallback] Audio mentions 'The presenter walks through the city square pointing at the old clock tower, then greets a street...' and Visual event showing 1 keyframe(s).",
-  "no_evidence": "Video content processed with no speech or visual variance."
+  "v1": "A video clip in which someone says: \"A chef slices vegetables on a wooden board while explaining the recipe.\"",
+  "v2": "A short video clip with no spoken dialogue.",
+  "v3": "A video clip in which someone says: \"The presenter walks through the city square pointing at the old clock tower, then greets a street...\"",
+  "no_evidence": "A brief video clip."
 }

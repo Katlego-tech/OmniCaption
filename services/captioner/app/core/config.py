@@ -99,12 +99,21 @@ class Settings(BaseSettings):
         default=8,
         description="Cap on keyframes fed to the VLM (controls prompt size/latency).",
     )
+    keyframe_grid: bool = Field(
+        default=True,
+        description="Send keyframes as ONE timestamp-labeled grid image instead "
+        "of N separate payloads: ~80% smaller upload, one visual pass, and "
+        "explicit chronology for the VLM. Set 0 for the legacy per-frame "
+        "payload.",
+    )
 
     # --- Synthesis / generation ---
     max_new_tokens: int = Field(
-        default=4096,
+        default=8192,
         description="Maximum tokens generated per caption (reasoning VLMs spend "
-        "tokens on thinking before the tagged caption).",
+        "tokens on thinking before the tagged caption). 4096 truncated real "
+        "reasoning output mid-thought (finish_reason='length'), costing a full "
+        "retry; 8192 clears the common case on the first attempt.",
     )
     synthesis_max_attempts: int = Field(
         default=3,
@@ -126,8 +135,24 @@ class Settings(BaseSettings):
         description="Value for HSA_OVERRIDE_GFX_VERSION (e.g. 11.0.0 for RDNA3).",
     )
 
+    # --- Throughput ---
+    task_concurrency: int = Field(
+        default=4,
+        description="Tasks processed concurrently. Synthesis is a remote API "
+        "call and downloads are I/O-bound, so tasks overlap almost fully; "
+        "Whisper (the only local model) is serialized behind a lock. "
+        "Sequential processing of ~12 hidden clips at 1.5-3 min each cannot "
+        "fit the 600 s budget — every clip past the cutoff scores zero.",
+    )
+
     # --- Timeouts / latency guards (seconds) ---
-    download_timeout_s: float = Field(default=60.0, description="Per-video download timeout.")
+    download_timeout_s: float = Field(
+        default=180.0,
+        description="Per-video download timeout. The judged clips are 1440p-4K "
+        "MP4s; a real run lost every caption when a 4K download hit the old 60 s "
+        "default, so keep generous headroom (the total-runtime guard still bounds "
+        "the batch).",
+    )
     fireworks_timeout_s: float = Field(
         default=120.0,
         description="Per-request read timeout for the Fireworks VLM call. Reasoning "
@@ -140,6 +165,23 @@ class Settings(BaseSettings):
     total_runtime_budget_s: float = Field(
         default=600.0,
         description="Hard total runtime budget for the whole run (10 min).",
+    )
+    budget_reserve_s: float = Field(
+        default=120.0,
+        description="Stop STARTING new tasks once elapsed exceeds "
+        "total_runtime_budget_s minus this reserve, so the in-flight task can "
+        "finish and the process exits 0 before the harness kills the container "
+        "(a killed container exits non-zero and writes nothing further).",
+    )
+    hard_exit_reserve_s: float = Field(
+        default=30.0,
+        description="Absolute wall-clock guard: force-exit 0 at "
+        "total_runtime_budget_s minus this reserve even mid-task. The "
+        "between-task budget_reserve_s guard cannot bound a task already in "
+        "flight (download + ffmpeg + Whisper + UHD decode + synthesis retries "
+        "can together exceed the whole budget), and a judge-side kill is "
+        "scored TIMEOUT regardless of the valid results.json on disk — the "
+        "process must exit first.",
     )
 
 

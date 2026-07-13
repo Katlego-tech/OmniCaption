@@ -142,6 +142,8 @@ def load_tasks(path: Path | str) -> list[Task]:
     from pathlib import Path
 
     path = Path(path)
-    with path.open("r", encoding="utf-8") as f:
+    # utf-8-sig decodes plain UTF-8 identically and also tolerates a BOM —
+    # observed live: a BOM'd tasks.json made json.load raise at char 0.
+    with path.open("r", encoding="utf-8-sig") as f:
         data = json.load(f)
     return TaskInput.model_validate(data).root

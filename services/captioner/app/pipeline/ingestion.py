@@ -7,6 +7,7 @@ than binding a Python decoder, matching the hackathon reference approach.
 from __future__ import annotations
 
 import subprocess
+import time
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -21,6 +22,10 @@ logger = get_logger(__name__)
 _TARGET_SAMPLE_RATE = 16_000
 _TARGET_CHANNELS = 1
 _DOWNLOAD_CHUNK = 1 << 20  # 1 MiB
+# ffmpeg on a judged UHD clip finishes in seconds; a hang must not eat the
+# whole runtime budget (the hard-exit guard is the backstop, not the plan).
+_FFMPEG_TIMEOUT_S = 120.0
+_FFMPEG_SILENT_TIMEOUT_S = 30.0
 
 
 def _safe_stem(url: str, fallback: str) -> str:
@@ -40,7 +45,9 @@ def download_video(
     Args:
         url: Publicly downloadable video URL.
         dest_dir: Directory to write the file into (created if missing).
-        timeout_s: Per-request timeout in seconds.
+        timeout_s: Bounds BOTH the socket operations and the total elapsed
+            download time. requests' ``timeout`` alone only limits gaps
+            between bytes, so a slow-but-steady stream was otherwise unbounded.
         task_id: Used to build a stable, unique filename.
 
     Returns:
@@ -58,13 +65,21 @@ def download_video(
         return out_path
 
     logger.info("Downloading %s -> %s", url, out_path)
+    started = time.monotonic()
     try:
         with requests.get(url, stream=True, timeout=timeout_s) as resp:
             resp.raise_for_status()
             with out_path.open("wb") as fh:
                 for chunk in resp.iter_content(chunk_size=_DOWNLOAD_CHUNK):
+                    if time.monotonic() - started > timeout_s:
+                        raise IngestionError(
+                            f"Download exceeded the {timeout_s:.0f}s total cap: {url}"
+                        )
                     if chunk:
                         fh.write(chunk)
+    except IngestionError:
+        out_path.unlink(missing_ok=True)  # never leave a partial file "cached"
+        raise
     except requests.RequestException as exc:
         logger.error("Download failed for URL %s: %s", url, exc)
         raise IngestionError(f"Download failed: {exc}") from exc
@@ -107,7 +122,10 @@ def extract_audio(video: Path, dest_dir: Path | None = None) -> Path:
     ]
     logger.info("Extracting audio: %s", " ".join(cmd))
     try:
-        subprocess.run(cmd, check=True, capture_output=True, text=True)
+        subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=_FFMPEG_TIMEOUT_S)
+    except subprocess.TimeoutExpired as exc:
+        logger.error("ffmpeg timed out after %.0fs on %s", _FFMPEG_TIMEOUT_S, video)
+        raise AudioExtractionError(f"ffmpeg timed out after {_FFMPEG_TIMEOUT_S:.0f}s.") from exc
     except FileNotFoundError as exc:
         logger.error("ffmpeg command not found on PATH: %s", exc)
         raise AudioExtractionError("ffmpeg is not installed or not on PATH.") from exc
@@ -128,7 +146,13 @@ def extract_audio(video: Path, dest_dir: Path | None = None) -> Path:
                 str(wav_path),
             ]
             try:
-                subprocess.run(silent_cmd, check=True, capture_output=True, text=True)
+                subprocess.run(
+                    silent_cmd,
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                    timeout=_FFMPEG_SILENT_TIMEOUT_S,
+                )
                 return wav_path
             except Exception as silent_exc:
                 logger.error("Failed to generate silent wav: %s", silent_exc)

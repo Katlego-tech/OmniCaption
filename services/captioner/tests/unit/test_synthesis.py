@@ -7,6 +7,7 @@ import pytest
 import requests
 
 from app.core.config import Settings
+from app.core.errors import is_fallback_caption
 from app.core.schema import Style
 from app.pipeline.audio import Transcript
 from app.pipeline.synthesis import CaptionSynthesizer
@@ -38,12 +39,15 @@ def test_modality_order_and_pmp(settings_with_key: Settings) -> None:
     assert "meticulous archival captioner" in system_content
     assert "<captionStyle>" in system_content
 
+    # Images (stitched grid + layout note) come before the transcript text.
     user_content = messages[1]["content"]
-    assert len(user_content) == 2
+    assert len(user_content) == 3
     assert user_content[0]["type"] == "image_url"
     assert "data:image/jpeg;base64" in user_content[0]["image_url"]["url"]
     assert user_content[1]["type"] == "text"
-    assert "Transcript:\nTest transcript" in user_content[1]["text"]
+    assert "grid" in user_content[1]["text"].lower()
+    assert user_content[2]["type"] == "text"
+    assert "Transcript:\nTest transcript" in user_content[2]["text"]
 
     # Test sarcastic style (no PMP in system message)
     messages_sarcastic = synth._build_messages(keyframes, "Test transcript", Style.SARCASTIC)
@@ -55,9 +59,9 @@ def test_modality_order_and_pmp(settings_with_key: Settings) -> None:
     assert "dry, unimpressed critic" in system_content_sarc
 
     user_content_sarc = messages_sarcastic[1]["content"]
-    assert len(user_content_sarc) == 2
+    assert len(user_content_sarc) == 3
     assert user_content_sarc[0]["type"] == "image_url"
-    assert user_content_sarc[1]["type"] == "text"
+    assert user_content_sarc[-1]["type"] == "text"
 
 
 def test_synthesis_success(monkeypatch: pytest.MonkeyPatch, settings_with_key: Settings) -> None:
@@ -108,7 +112,7 @@ def test_synthesis_fallback_on_api_error(
 
     # generate_for_styles handles exceptions and returns fallback caption
     captions = synth.generate_for_styles(keyframes, transcript, [Style.FORMAL])
-    assert "[Fallback]" in captions[Style.FORMAL]
+    assert is_fallback_caption(captions[Style.FORMAL])
 
 
 def _mock_content(monkeypatch: pytest.MonkeyPatch, content: str, finish_reason: str = "stop"):
@@ -163,7 +167,7 @@ def test_degenerate_caption_falls_back_grounded(
     captions = synth.generate_for_styles(keyframes, transcript, [Style.SARCASTIC])
 
     assert captions[Style.SARCASTIC] != "..."
-    assert "[Fallback]" in captions[Style.SARCASTIC]
+    assert is_fallback_caption(captions[Style.SARCASTIC])
 
 
 def test_short_but_real_caption_is_kept(
@@ -192,7 +196,7 @@ def test_untagged_reasoning_leak_falls_back(
 
     captions = synth.generate_for_styles(keyframes, transcript, [Style.HUMOROUS_NON_TECH])
 
-    assert "[Fallback]" in captions[Style.HUMOROUS_NON_TECH]
+    assert is_fallback_caption(captions[Style.HUMOROUS_NON_TECH])
     assert "Let me think" not in captions[Style.HUMOROUS_NON_TECH]
 
 
