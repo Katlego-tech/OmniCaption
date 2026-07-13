@@ -91,6 +91,17 @@ Planning is now self-driven through [SPEC.md](SPEC.md) / [PLAN.md](PLAN.md) / [T
 
 ## 🗒️ Log
 
+- 2026-07-13 (T-50min) — Tumo (via Claude) — **Final pre-deadline image: keyframe grid + allocator fix** (research
+  report Strategy B adopted; A/finetune explicitly deferred — cannot land in the window). One timestamp-labeled
+  2×4 grid replaces 8 separate base64 payloads per VLM call (~80% smaller upload, one visual pass, explicit
+  chronology); grid note forbids quoting tile timestamps; per-frame fallback kept (`OMNICAPTION_KEYFRAME_GRID=0`).
+  `CT2_CUDA_ALLOCATOR=cub_caching` baked (CTranslate2#2021 ROCm fragmentation crash). Suite 97 green, ruff clean;
+  live 2-clip validation shows temporally-aware grounded captions. Also shipped `tools/dataset/` (Pexels corpus +
+  Fireworks-teacher generator, resumable) for the post-deadline finetune decision — NOT for this window; Katlego's
+  parallel dataset attempt on his laptop stood down (his script hit a non-JSON Fireworks response = missing key in
+  that venv). Score history today: 0.16 → 0.37 (rank 93 → 88) → grid image publishing as run 29247414017.
+  Submission form: `docker.io/katlegotech/omnicaption-captioner:latest` (tag unchanged; user confirmed submitted).
+
 - 2026-07-13 — Tumo (via Claude) — **Score-recovery sprint: 0.16 → target max (coverage + style quality; tests-first).**
   Diagnosis: the scored run banked format/reliability points but lost content — the judged image produced
   fallback/empty captions (keyless image and/or the sequential-task cutoff emptying most of ~12 hidden clips at
