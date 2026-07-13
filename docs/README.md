@@ -29,6 +29,9 @@ captioning pipeline that reads `/input/tasks.json`, generates styled captions pe
 | [17-pipeline-stages](17-pipeline-stages.md) | The 6-stage interface contract + VRAM handoff + fallbacks |
 | [18-frontend-architecture](18-frontend-architecture.md) | Technical specs and design systems for Next.js web application |
 | [19-notebook-environment](19-notebook-environment.md) | Notebook implementation and testing plan for ROCm 7.2 + vLLM |
+| [report-scoreboard-pivot](report-scoreboard-pivot.md) | Strategy report to recover Track 2 style quality from 93rd place |
+| [submission-amd-proof](submission-amd-proof.md) | Official AMD/ROCm hardware acceleration proof and logs |
+| [submission-descriptions](submission-descriptions.md) | Pitch descriptions, categories, and technology tags |
 | [deployment](deployment.md) | Build/tag/push linux/amd64 image + local smoke test |
 
 The top-level planning documents — [SPEC.md](../SPEC.md), [PLAN.md](../PLAN.md), [TASKS.md](../TASKS.md) —
