@@ -91,6 +91,21 @@ Planning is now self-driven through [SPEC.md](SPEC.md) / [PLAN.md](PLAN.md) / [T
 
 ## 🗒️ Log
 
+- 2026-07-13 — Tumo (via Claude) — **Judge returned TIMEOUT (no score) — root-caused + fixed (tests-first, on
+  `fix/judge-run-key-and-uhd-timeout`, uncommitted pending review).** Per the FAQ, TIMEOUT means the *container*
+  outlived the judge's wall clock — a valid results.json on disk does not rescue a killed run. The hole: the
+  budget guard only stops *starting* tasks at `budget − reserve` (480 s); a task already in flight is unbounded —
+  download (180 s socket timeout bounds only gaps *between* bytes, not total time) + un-timeouted ffmpeg + Whisper
+  + UHD keyframe decode + synthesis worst-case 3 attempts × 120 s — so one slow hidden clip pushes the run past
+  600 s and the judge kills it. (Docker Hub confirms the hardened image WAS pushed 2026-07-12 21:32 UTC, so the
+  judge ran the fixed code — the in-flight overshoot is the remaining cause.) Fixes: (1) **hard wall-clock
+  watchdog** — pipeline runs on a daemon thread; the entrypoint force-exits 0 at `total_runtime_budget_s −
+  hard_exit_reserve_s` (new setting, default 30 s) even mid-task, with the pre-written/incrementally-flushed
+  results.json already on disk; (2) download loop now enforces `timeout_s` as a *total* cap and deletes the
+  partial file; (3) ffmpeg gets subprocess timeouts (120 s extract / 30 s silent-wav). Suite 83 → 87 green
+  (+2 watchdog, +2 stage-cap tests), ruff check + format clean. **Next: rebuild `Dockerfile.submit` (overlays
+  app/ — picks these up automatically), push with the baked key, resubmit.**
+
 - 2026-07-12 (23:10, T-50min) — Tumo (via Claude) — **Submission hardening sprint against the judging FAQ** (PR #45,
   image rebuilt+pushed from the branch). Judge runs the container BARE (no env, no setup), so: (1) **Fireworks key
   bake** — ARG/ENV in the Dockerfile + workflow secret forwarding; without a key every style falls back → accuracy

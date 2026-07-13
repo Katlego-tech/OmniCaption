@@ -12,6 +12,13 @@ empties most of the batch. These tests pin the fixes:
    never yield OUTPUT_MISSING or MISSING_TASKS.
 3. The batch guard stops STARTING tasks at ``budget - reserve`` so the
    in-flight task can finish and the process exits 0 before an external kill.
+4. A HARD wall-clock deadline: the judge scored a run TIMEOUT because the
+   between-task guard cannot bound a task already in flight (download +
+   ffmpeg + Whisper + UHD keyframe decode + synthesis retries can exceed the
+   whole budget) — and a judge-side kill is TIMEOUT/no-score even with a
+   valid results.json on disk. The entrypoint must force exit 0 first.
+5. Total-time caps on the unbounded stages: the download loop (requests'
+   socket timeout only bounds gaps BETWEEN bytes) and the ffmpeg subprocess.
 """
 
 from __future__ import annotations
@@ -190,3 +197,150 @@ def test_budget_reserve_stops_starting_new_tasks(
     assert results[0].captions[Style.FORMAL] == "real"
     assert results[1].captions[Style.FORMAL] == "real"
     assert results[2].captions[Style.FORMAL] == ""
+
+
+# --- 4. hard wall-clock exit ------------------------------------------------------
+
+
+def _judge_io(tmp_path: Path) -> tuple[Path, Path]:
+    """A tasks.json with one task, plus an output dir, as the harness mounts them."""
+    input_dir = tmp_path / "input"
+    output_dir = tmp_path / "out"
+    input_dir.mkdir()
+    (input_dir / "tasks.json").write_text(
+        json.dumps(
+            [{"task_id": "a", "video_url": "https://example.com/a.mp4", "styles": ["formal"]}]
+        ),
+        encoding="utf-8",
+    )
+    return input_dir, output_dir
+
+
+def test_hard_deadline_forces_exit_zero(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """A task hanging in flight cannot outlive the budget: the entrypoint hard-exits 0."""
+    from app import main as app_main
+
+    input_dir, output_dir = _judge_io(tmp_path)
+    cfg = Settings(
+        _env_file=None,
+        input_dir=input_dir,
+        output_dir=output_dir,
+        total_runtime_budget_s=0.6,
+        hard_exit_reserve_s=0.3,
+    )
+    monkeypatch.setattr(app_main, "get_settings", lambda: cfg)
+
+    class HangingPipeline:
+        def __init__(self, _cfg: Settings) -> None:
+            self.transcripts: dict = {}
+
+        def run(self, run_tasks: list[Task], on_result=None) -> list:  # noqa: ANN001
+            time.sleep(30.0)  # daemon thread; dies with the process
+            return []
+
+        def close(self) -> None:
+            pass
+
+    monkeypatch.setattr(app_main, "CaptionPipeline", HangingPipeline)
+    exits: list[bool] = []
+    monkeypatch.setattr(app_main, "_hard_exit", lambda: exits.append(True))
+
+    assert app_main.run() == 0
+    assert exits == [True], "the hard deadline never fired"
+    # The pre-written document still covers every task — scored, not TIMEOUT.
+    doc = json.loads(cfg.results_path.read_text(encoding="utf-8"))
+    assert [c["task_id"] for c in doc] == ["a"]
+    assert doc[0]["captions"] == {"formal": ""}
+
+
+def test_fast_run_never_hard_exits(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """A run that finishes inside the budget exits through the normal path."""
+    from app import main as app_main
+
+    input_dir, output_dir = _judge_io(tmp_path)
+    cfg = Settings(_env_file=None, input_dir=input_dir, output_dir=output_dir)
+    monkeypatch.setattr(app_main, "get_settings", lambda: cfg)
+
+    class QuickPipeline:
+        def __init__(self, _cfg: Settings) -> None:
+            self.transcripts: dict = {}
+
+        def run(self, run_tasks: list[Task], on_result=None) -> list:  # noqa: ANN001
+            return [
+                build_result(t.task_id, dict.fromkeys(t.styles, "real"), t.styles)
+                for t in run_tasks
+            ]
+
+        def close(self) -> None:
+            pass
+
+    monkeypatch.setattr(app_main, "CaptionPipeline", QuickPipeline)
+    exits: list[bool] = []
+    monkeypatch.setattr(app_main, "_hard_exit", lambda: exits.append(True))
+
+    assert app_main.run() == 0
+    assert exits == []
+    doc = json.loads(cfg.results_path.read_text(encoding="utf-8"))
+    assert doc[0]["captions"] == {"formal": "real"}
+
+
+# --- 5. total-time caps on unbounded stages ---------------------------------------
+
+
+def test_download_total_time_capped(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """A drip-feeding server cannot hold ingestion past timeout_s total."""
+    from types import SimpleNamespace
+
+    from app.core.errors import IngestionError
+    from app.pipeline import ingestion
+
+    clock = {"now": 0.0}
+
+    class DrippingResponse:
+        def raise_for_status(self) -> None:
+            pass
+
+        def iter_content(self, chunk_size: int):  # noqa: ANN201 - generator
+            while True:
+                clock["now"] += 10.0  # each chunk arrives fast enough for the
+                yield b"x"  # socket timeout, but the stream never ends
+
+        def __enter__(self) -> DrippingResponse:
+            return self
+
+        def __exit__(self, *exc: object) -> bool:
+            return False
+
+    monkeypatch.setattr(ingestion, "time", SimpleNamespace(monotonic=lambda: clock["now"]))
+    fake_requests = SimpleNamespace(
+        get=lambda *a, **k: DrippingResponse(), RequestException=Exception
+    )
+    monkeypatch.setattr(ingestion, "requests", fake_requests)
+
+    with pytest.raises(IngestionError, match="exceeded"):
+        ingestion.download_video(
+            "https://example.com/big.mp4", tmp_path, timeout_s=60.0, task_id="t"
+        )
+    assert not list(tmp_path.glob("t_*")), "partial download was left behind"
+
+
+def test_ffmpeg_extraction_is_time_capped(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """ffmpeg gets a subprocess timeout and a hang surfaces as AudioExtractionError."""
+    import subprocess
+
+    from app.core.errors import AudioExtractionError
+    from app.pipeline import ingestion
+
+    seen: dict[str, object] = {}
+
+    def fake_run(cmd: list, **kwargs: object) -> None:
+        seen["timeout"] = kwargs.get("timeout")
+        raise subprocess.TimeoutExpired(cmd, float(kwargs.get("timeout") or 0))
+
+    monkeypatch.setattr(ingestion.subprocess, "run", fake_run)
+
+    with pytest.raises(AudioExtractionError, match="timed out"):
+        ingestion.extract_audio(tmp_path / "v.mp4")
+    assert isinstance(seen["timeout"], float) and seen["timeout"] > 0, (
+        "ffmpeg was invoked without a timeout"
+    )

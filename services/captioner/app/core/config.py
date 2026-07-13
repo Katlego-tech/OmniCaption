@@ -156,6 +156,16 @@ class Settings(BaseSettings):
         "finish and the process exits 0 before the harness kills the container "
         "(a killed container exits non-zero and writes nothing further).",
     )
+    hard_exit_reserve_s: float = Field(
+        default=30.0,
+        description="Absolute wall-clock guard: force-exit 0 at "
+        "total_runtime_budget_s minus this reserve even mid-task. The "
+        "between-task budget_reserve_s guard cannot bound a task already in "
+        "flight (download + ffmpeg + Whisper + UHD decode + synthesis retries "
+        "can together exceed the whole budget), and a judge-side kill is "
+        "scored TIMEOUT regardless of the valid results.json on disk — the "
+        "process must exit first.",
+    )
 
 
 def get_settings() -> Settings:

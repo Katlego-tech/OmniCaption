@@ -8,7 +8,10 @@ because the eval harness scores on the presence and validity of the output.
 
 from __future__ import annotations
 
+import os
 import sys
+import threading
+import time
 
 from app.core.config import Settings, get_settings
 from app.core.gpu import assert_amd, configure_rocm_env
@@ -80,6 +83,18 @@ def _load_tasks(cfg: Settings) -> list[Task]:
     return salvaged
 
 
+def _hard_exit() -> None:
+    """Terminate the process immediately with exit code 0.
+
+    ``os._exit`` deliberately skips interpreter cleanup: at the deadline the
+    pipeline thread may be blocked inside an uninterruptible C call (a socket
+    read, ffmpeg, CTranslate2, OpenCV), and the only thing that still matters
+    is that the container exits 0 before the harness clock does — a judge-side
+    kill is scored TIMEOUT even though a valid results.json is on disk.
+    """
+    os._exit(0)
+
+
 def run() -> int:
     """Execute the full run and always write an output document.
 
@@ -111,16 +126,39 @@ def run() -> int:
     except Exception as exc:  # noqa: BLE001 - pre-write is best-effort
         logger.exception("Pre-write of results.json failed: %s", exc)
 
-    results: list[ClipResult] = []
+    # Hard wall-clock deadline, measured from process start: the between-task
+    # reserve in the orchestrator cannot bound a task already in flight, so the
+    # pipeline runs on a daemon thread and this thread enforces the exit.
+    deadline = time.monotonic() + max(0.0, cfg.total_runtime_budget_s - cfg.hard_exit_reserve_s)
+
     pipeline = CaptionPipeline(cfg)
+    outcome: dict[str, list[ClipResult]] = {}
+
+    def _work() -> None:
+        try:
+            outcome["results"] = pipeline.run(tasks, on_result=_flush)
+        except Exception as exc:  # noqa: BLE001 - guarantee an output file regardless
+            logger.exception("Pipeline crashed: %s", exc)
+            # Backfill empty results so every task still appears in the output.
+            outcome["results"] = [build_result(t.task_id, {}, t.styles) for t in tasks]
+
+    worker = threading.Thread(target=_work, name="pipeline", daemon=True)
+    worker.start()
+    worker.join(timeout=max(0.0, deadline - time.monotonic()))
+    if worker.is_alive():
+        logger.error(
+            "Hard deadline reached (budget %.0fs - reserve %.0fs) with work still in "
+            "flight; exiting 0 with the results already flushed to disk.",
+            cfg.total_runtime_budget_s,
+            cfg.hard_exit_reserve_s,
+        )
+        _hard_exit()
+        # Unreachable in production; reached in tests where _hard_exit is stubbed.
+    results = outcome.get("results", placeholders)
     try:
-        results = pipeline.run(tasks, on_result=_flush)
-    except Exception as exc:  # noqa: BLE001 - guarantee an output file regardless
-        logger.exception("Pipeline crashed: %s", exc)
-        # Backfill empty results so every task still appears in the output.
-        results = [build_result(t.task_id, {}, t.styles) for t in tasks]
-    finally:
         pipeline.close()
+    except Exception as exc:  # noqa: BLE001 - cleanup never blocks the exit path
+        logger.warning("Pipeline close failed: %s", exc)
 
     try:
         validate_and_write(results, cfg.results_path)
