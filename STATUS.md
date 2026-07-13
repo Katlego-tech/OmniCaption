@@ -91,6 +91,21 @@ Planning is now self-driven through [SPEC.md](SPEC.md) / [PLAN.md](PLAN.md) / [T
 
 ## 🗒️ Log
 
+- 2026-07-13 — Tumo (via Claude) — **Score-recovery sprint: 0.16 → target max (coverage + style quality; tests-first).**
+  Diagnosis: the scored run banked format/reliability points but lost content — the judged image produced
+  fallback/empty captions (keyless image and/or the sequential-task cutoff emptying most of ~12 hidden clips at
+  1.5–3 min each). Fixes: (1) **task-level concurrency** (`task_concurrency`, default 4) — downloads/vision/remote
+  synthesis overlap across clips; kill-safe flush now emits a complete input-ordered snapshot per completion
+  (thread-safe, placeholders for pending); (2) **Whisper loads once per run** behind a lock (per-task load/unload
+  was VRAM handoff for the retired local-Gemma design; synthesis is remote); (3) **deadline-gated retries** — past
+  the batch cutoff each style gets ONE attempt (one attempt for every clip beats three for a few); (4) **style
+  prompts few-shot calibrated** with the judge's retired reference captions + hard grounding rule (name concrete
+  visible subjects); goldens regenerated. Suite 87 → **92 green**, ruff clean. **Live validation (dev image, all 8
+  public clips, bare-style run): 32/32 captions, zero empty, zero fallbacks, 429 s wall on a home CPU box** —
+  captions are specific (reads TOKYU signage, lane numbers, green onions) and land the reference tone per style.
+  Rejected (for now) the report's finetuning pivot — unnecessary while coverage+key+prompts were the bottleneck;
+  notebook is better spent GPU-smoke-testing the published image. Next: publish via workflow → resubmit once.
+
 - 2026-07-13 — Tumo (via Claude) — **Judge returned TIMEOUT (no score) — root-caused + fixed (tests-first, on
   `fix/judge-run-key-and-uhd-timeout`, uncommitted pending review).** Per the FAQ, TIMEOUT means the *container*
   outlived the judge's wall clock — a valid results.json on disk does not rescue a killed run. The hole: the

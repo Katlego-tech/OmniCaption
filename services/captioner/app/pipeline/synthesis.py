@@ -9,6 +9,7 @@ returned. Styles for a single clip are generated in a loop over shared evidence.
 from __future__ import annotations
 
 import re
+import time
 from typing import TYPE_CHECKING, Any
 
 import requests
@@ -56,6 +57,10 @@ class CaptionSynthesizer:
         """
         self._cfg = cfg
         self.model: Any | None = None
+        # Monotonic timestamp after which retry ESCALATION stops (first attempts
+        # always run): set by the orchestrator to the batch cutoff so late tasks
+        # get one attempt per style instead of a 3x escalation chain.
+        self.retry_deadline: float | None = None
 
     def load(self) -> None:
         """Initialize the client (idempotent)."""
@@ -159,6 +164,16 @@ class CaptionSynthesizer:
         attempts = max(1, self._cfg.synthesis_max_attempts)
         last_error: SynthesisError | None = None
         for attempt in range(attempts):
+            if (
+                attempt > 0
+                and self.retry_deadline is not None
+                and time.monotonic() > self.retry_deadline
+            ):
+                logger.warning(
+                    "Skipping synthesis retries for style=%s: past the retry deadline.",
+                    style.value,
+                )
+                break
             temperature = 0.0 if attempt == 0 else min(0.2 + 0.2 * attempt, 0.6)
             max_tokens = self._cfg.max_new_tokens * (attempt + 1)
             try:

@@ -128,6 +128,16 @@ class Settings(BaseSettings):
         description="Value for HSA_OVERRIDE_GFX_VERSION (e.g. 11.0.0 for RDNA3).",
     )
 
+    # --- Throughput ---
+    task_concurrency: int = Field(
+        default=4,
+        description="Tasks processed concurrently. Synthesis is a remote API "
+        "call and downloads are I/O-bound, so tasks overlap almost fully; "
+        "Whisper (the only local model) is serialized behind a lock. "
+        "Sequential processing of ~12 hidden clips at 1.5-3 min each cannot "
+        "fit the 600 s budget — every clip past the cutoff scores zero.",
+    )
+
     # --- Timeouts / latency guards (seconds) ---
     download_timeout_s: float = Field(
         default=180.0,

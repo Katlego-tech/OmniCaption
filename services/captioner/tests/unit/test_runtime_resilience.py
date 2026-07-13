@@ -153,22 +153,34 @@ def test_results_prewritten_before_pipeline_starts(
     assert all(c["captions"] == {"formal": ""} for c in doc)
 
 
-def test_pipeline_reports_each_result_incrementally(
+def test_pipeline_reports_complete_snapshots_incrementally(
     monkeypatch: pytest.MonkeyPatch, settings: Settings
 ) -> None:
-    """`run(tasks, on_result=...)` fires after every task with results so far."""
-    calls: list[int] = []
+    """`on_result` fires after every task with a COMPLETE document: finished
+    tasks carry their real captions, unfinished ones placeholder empties — so
+    whatever snapshot is on disk at a kill covers every task id."""
+    cfg = settings.model_copy(update={"task_concurrency": 1})
+    snapshots: list[list] = []
 
     monkeypatch.setattr(
         orch.CaptionPipeline,
         "_run_task",
-        lambda self, task: build_result(task.task_id, {}, task.styles),
+        lambda self, task: build_result(
+            task.task_id, dict.fromkeys(task.styles, "real"), task.styles
+        ),
     )
-    pipeline = orch.CaptionPipeline(settings)
-    results = pipeline.run([_task("a"), _task("b")], on_result=lambda done: calls.append(len(done)))
+    pipeline = orch.CaptionPipeline(cfg)
+    results = pipeline.run(
+        [_task("a"), _task("b")], on_result=lambda doc: snapshots.append(list(doc))
+    )
 
     assert len(results) == 2
-    assert calls == [1, 2]
+    assert len(snapshots) == 2
+    # Every snapshot covers every task, in input order.
+    for snap in snapshots:
+        assert [r.task_id for r in snap] == ["a", "b"]
+    real_counts = [sum(1 for r in snap if r.captions[Style.FORMAL] == "real") for snap in snapshots]
+    assert real_counts == [1, 2]
 
 
 # --- 3. budget guard with in-flight reserve --------------------------------------
@@ -178,7 +190,9 @@ def test_budget_reserve_stops_starting_new_tasks(
     monkeypatch: pytest.MonkeyPatch, settings: Settings
 ) -> None:
     """No new task starts once elapsed > budget - reserve; results stay complete."""
-    cfg = settings.model_copy(update={"total_runtime_budget_s": 100.0, "budget_reserve_s": 40.0})
+    cfg = settings.model_copy(
+        update={"total_runtime_budget_s": 100.0, "budget_reserve_s": 40.0, "task_concurrency": 1}
+    )
 
     clock = {"now": 1000.0}
     monkeypatch.setattr(orch.time, "monotonic", lambda: clock["now"])
@@ -282,6 +296,136 @@ def test_fast_run_never_hard_exits(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
     assert exits == []
     doc = json.loads(cfg.results_path.read_text(encoding="utf-8"))
     assert doc[0]["captions"] == {"formal": "real"}
+
+
+# --- 6. task-level concurrency (coverage inside the budget) -----------------------
+
+
+def test_tasks_processed_concurrently(monkeypatch: pytest.MonkeyPatch, settings: Settings) -> None:
+    """Multiple tasks are in flight at once: 12 hidden clips at ~1.5-3 min each
+    sequentially can never fit 600 s — coverage requires cross-task overlap."""
+    cfg = settings.model_copy(update={"task_concurrency": 4})
+    active = 0
+    peak = 0
+    lock = threading.Lock()
+
+    def fake_run_task(self: orch.CaptionPipeline, task: Task):  # noqa: ANN202
+        nonlocal active, peak
+        with lock:
+            active += 1
+            peak = max(peak, active)
+        time.sleep(0.15)
+        with lock:
+            active -= 1
+        return build_result(task.task_id, dict.fromkeys(task.styles, "real"), task.styles)
+
+    monkeypatch.setattr(orch.CaptionPipeline, "_run_task", fake_run_task)
+    pipeline = orch.CaptionPipeline(cfg)
+    results = pipeline.run([_task(f"t{i}") for i in range(4)])
+
+    assert peak >= 2, f"tasks ran sequentially (peak concurrency {peak})"
+    assert [r.task_id for r in results] == ["t0", "t1", "t2", "t3"], "input order lost"
+    assert all(r.captions[Style.FORMAL] == "real" for r in results)
+
+
+def test_concurrent_snapshots_always_cover_every_task(
+    monkeypatch: pytest.MonkeyPatch, settings: Settings
+) -> None:
+    """Even with out-of-order completion, every flushed snapshot is a complete,
+    input-ordered document (kill-safety must survive the concurrency change)."""
+    cfg = settings.model_copy(update={"task_concurrency": 3})
+    delays = {"t0": 0.2, "t1": 0.05, "t2": 0.1}
+    snapshots: list[list] = []
+    snap_lock = threading.Lock()
+
+    def fake_run_task(self: orch.CaptionPipeline, task: Task):  # noqa: ANN202
+        time.sleep(delays[task.task_id])
+        return build_result(task.task_id, dict.fromkeys(task.styles, "real"), task.styles)
+
+    def on_result(doc: list) -> None:
+        with snap_lock:
+            snapshots.append(list(doc))
+
+    monkeypatch.setattr(orch.CaptionPipeline, "_run_task", fake_run_task)
+    pipeline = orch.CaptionPipeline(cfg)
+    results = pipeline.run([_task("t0"), _task("t1"), _task("t2")], on_result=on_result)
+
+    assert [r.task_id for r in results] == ["t0", "t1", "t2"]
+    assert len(snapshots) == 3
+    for snap in snapshots:
+        assert [r.task_id for r in snap] == ["t0", "t1", "t2"], "snapshot missing tasks"
+
+
+def test_whisper_loaded_once_across_tasks(
+    monkeypatch: pytest.MonkeyPatch, settings: Settings
+) -> None:
+    """Whisper loads once per RUN, not per task: the per-task load/unload dance
+    existed for VRAM handoff to a local VLM that is now remote (Fireworks)."""
+    loads: list[int] = []
+
+    class FakeModel:
+        def transcribe(self, wav: str, **kwargs: object) -> tuple:
+            return iter(()), type("Info", (), {"language": "en", "duration": 1.0})()
+
+    monkeypatch.setattr(
+        "app.pipeline.audio.load_whisper", lambda cfg: (loads.append(1), FakeModel())[1]
+    )
+    pipeline = orch.CaptionPipeline(settings)
+    for _ in range(3):
+        pipeline._transcribe("fake.wav")
+    pipeline.close()
+
+    assert len(loads) == 1, f"Whisper loaded {len(loads)} times for 3 tasks"
+
+
+# --- 7. deadline-gated synthesis retries -------------------------------------------
+
+
+def test_synthesis_retries_stop_past_deadline(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Past the retry deadline a style gets ONE attempt: one real attempt for
+    every clip beats three attempts for a few."""
+    from app.core.errors import SynthesisError
+
+    cfg = Settings(_env_file=None, fireworks_api_key="fake_key", synthesis_max_attempts=3)
+    calls: list[int] = []
+
+    def failing_request(
+        self: CaptionSynthesizer, messages: list, style: Style, temperature: float, max_tokens: int
+    ) -> str:
+        calls.append(1)
+        raise SynthesisError("boom")
+
+    monkeypatch.setattr(CaptionSynthesizer, "_request_caption", failing_request)
+    synth = CaptionSynthesizer(cfg)
+    synth.load()
+    synth.retry_deadline = time.monotonic() - 1.0  # already past
+
+    with pytest.raises(SynthesisError):
+        synth.generate_caption([], _transcript(), Style.FORMAL)
+    assert len(calls) == 1, f"expected 1 attempt past the deadline, got {len(calls)}"
+
+
+def test_synthesis_retries_run_before_deadline(monkeypatch: pytest.MonkeyPatch) -> None:
+    """With time on the clock the escalation retries still happen."""
+    from app.core.errors import SynthesisError
+
+    cfg = Settings(_env_file=None, fireworks_api_key="fake_key", synthesis_max_attempts=3)
+    calls: list[int] = []
+
+    def failing_request(
+        self: CaptionSynthesizer, messages: list, style: Style, temperature: float, max_tokens: int
+    ) -> str:
+        calls.append(1)
+        raise SynthesisError("boom")
+
+    monkeypatch.setattr(CaptionSynthesizer, "_request_caption", failing_request)
+    synth = CaptionSynthesizer(cfg)
+    synth.load()
+    synth.retry_deadline = time.monotonic() + 3600.0
+
+    with pytest.raises(SynthesisError):
+        synth.generate_caption([], _transcript(), Style.FORMAL)
+    assert len(calls) == 3
 
 
 # --- 5. total-time caps on unbounded stages ---------------------------------------

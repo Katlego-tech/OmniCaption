@@ -1,21 +1,24 @@
-"""Pipeline orchestration: run the six stages per task with sequential loading.
+"""Pipeline orchestration: run the six stages per task, tasks in parallel.
+
+Tasks are processed by a small worker pool (``task_concurrency``): downloads,
+keyframe extraction, and the remote Fireworks synthesis calls all overlap
+across clips — sequential processing of ~12 hidden clips at 1.5–3 min each can
+never fit the 600 s budget, and every clip that misses the cutoff scores zero.
 
 Model lifecycle across a run:
-    1. Ingest + extract audio for the task.
-    2. Load Whisper once, transcribe, then unload + reclaim VRAM.
-    3. Extract + align keyframes (CPU/OpenCV).
-    4. Load Gemma once, generate captions for all styles.
-    5. Build/validate output.
-
-The Gemma model is loaded lazily on the first task and reused for the rest of the
-run; Whisper is loaded per task but always unloaded before synthesis so the two
-large models never co-reside in VRAM.
+    - Whisper (the only LOCAL model) loads once per run and transcribes behind
+      a lock, serializing the GPU work.
+    - Synthesis is a remote API (Fireworks VLM), so nothing co-resides with
+      Whisper in VRAM — the historical per-task load/unload handoff existed
+      for the retired local-Gemma design.
 """
 
 from __future__ import annotations
 
+import threading
 import time
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -68,6 +71,9 @@ class CaptionPipeline:
         self.current_state: CaptionState | None = None
         # Collected for the transcript sidecar (Track 3 oracle enrichment).
         self.transcripts: dict[str, Transcript] = {}
+        # Whisper is shared across tasks: loaded once, transcription serialized.
+        self._whisper: WhisperTranscriber | None = None
+        self._whisper_lock = threading.Lock()
 
     def run(
         self,
@@ -78,43 +84,69 @@ class CaptionPipeline:
 
         Args:
             tasks: Parsed input tasks.
-            on_result: Optional callback fired after EVERY task with the results
-                accumulated so far — the entrypoint uses it to refresh
-                ``results.json`` incrementally so a mid-batch kill still leaves
-                a complete, valid document on disk. Callback errors are logged
-                and never abort the batch.
+            on_result: Optional callback fired after EVERY task completion with
+                a COMPLETE, input-ordered document — finished tasks carry their
+                real captions, unfinished ones placeholder empties — so the
+                entrypoint can atomically refresh ``results.json`` and a
+                mid-batch kill still leaves a valid document covering every
+                task. Called under a lock (writes never interleave); callback
+                errors are logged and never abort the batch.
 
         Returns:
-            One :class:`ClipResult` per task (order preserved). A task that fails
-            still yields a result with empty captions for its requested styles.
+            One :class:`ClipResult` per task (input order preserved). A task
+            that fails still yields a result with empty captions for its
+            requested styles.
         """
         self._run_started = time.monotonic()
-        results: list[ClipResult] = []
-        # Stop STARTING tasks early enough that the in-flight one can finish and
+        # Stop STARTING tasks early enough that in-flight ones can finish and
         # the process still exits 0 before any harness-side kill at the budget.
         start_cutoff = max(0.0, self._cfg.total_runtime_budget_s - self._cfg.budget_reserve_s)
+        # Same moment gates synthesis retry escalation: near the deadline, one
+        # attempt per style for every clip beats three attempts for a few.
+        self._synth.retry_deadline = self._run_started + start_cutoff
 
-        for task in tasks:
+        results: list[ClipResult | None] = [None] * len(tasks)
+        results_lock = threading.Lock()
+
+        def _snapshot() -> list[ClipResult]:
+            return [
+                r if r is not None else build_result(t.task_id, {}, t.styles)
+                for r, t in zip(results, tasks, strict=True)
+            ]
+
+        def _process(idx: int, task: Task) -> None:
             elapsed = time.monotonic() - self._run_started
             if elapsed > start_cutoff:
                 logger.error(
                     "Runtime cutoff reached (%.0fs elapsed > %.0fs budget - %.0fs reserve); "
-                    "emitting empty results for the remaining tasks.",
+                    "emitting an empty result for task %s.",
                     elapsed,
                     self._cfg.total_runtime_budget_s,
                     self._cfg.budget_reserve_s,
+                    task.task_id,
                 )
-                results.append(build_result(task.task_id, {}, task.styles))
+                result = build_result(task.task_id, {}, task.styles)
             else:
-                results.append(self._run_task(task))
+                result = self._run_task(task)
+            with results_lock:
+                results[idx] = result
+                if on_result is not None:
+                    try:
+                        on_result(_snapshot())
+                    except Exception as exc:  # noqa: BLE001 - reporting never sinks the batch
+                        logger.warning("on_result callback failed: %s", exc)
 
-            if on_result is not None:
-                try:
-                    on_result(list(results))
-                except Exception as exc:  # noqa: BLE001 - reporting never sinks the batch
-                    logger.warning("on_result callback failed: %s", exc)
+        workers = max(1, self._cfg.task_concurrency)
+        if workers == 1 or len(tasks) <= 1:
+            for idx, task in enumerate(tasks):
+                _process(idx, task)
+        else:
+            with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="task") as pool:
+                futures = [pool.submit(_process, i, t) for i, t in enumerate(tasks)]
+                for future in futures:
+                    future.result()  # surface unexpected worker crashes
 
-        return results
+        return _snapshot()
 
     def _run_task(self, task: Task) -> ClipResult:
         """Execute all stages for a single task with per-task error isolation.
@@ -194,7 +226,10 @@ class CaptionPipeline:
         return result
 
     def _transcribe(self, wav) -> Transcript:  # noqa: ANN001 - Path, kept simple
-        """Load Whisper, transcribe, then unload and reclaim VRAM.
+        """Transcribe on the shared Whisper model (loaded once, serialized).
+
+        The lock serializes GPU work across task workers; synthesis is remote,
+        so Whisper stays resident for the whole run with nothing to co-reside.
 
         Args:
             wav: Path to the extracted WAV file.
@@ -202,18 +237,19 @@ class CaptionPipeline:
         Returns:
             The transcript.
         """
-        transcriber = WhisperTranscriber(self._cfg)
-        transcriber.load()
-        try:
-            transcript = transcriber.transcribe(wav)
-        finally:
-            transcriber.unload()
-            free_model(transcriber)
-            reclaim_vram()  # Stage 3: free Whisper before loading Gemma.
-        return transcript
+        with self._whisper_lock:
+            if self._whisper is None:
+                transcriber = WhisperTranscriber(self._cfg)
+                transcriber.load()
+                self._whisper = transcriber
+            return self._whisper.transcribe(wav)
 
     def close(self) -> None:
-        """Release the synthesizer and reclaim VRAM at end of run."""
+        """Release Whisper and the synthesizer, reclaim VRAM at end of run."""
+        if self._whisper is not None:
+            self._whisper.unload()
+            free_model(self._whisper)
+            self._whisper = None
         self._synth.unload()
         free_model(self._synth)
         reclaim_vram()

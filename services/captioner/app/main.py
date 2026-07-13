@@ -118,11 +118,13 @@ def run() -> int:
     # task is scored as a hard failure, an empty caption merely scores low.
     placeholders: list[ClipResult] = [build_result(t.task_id, {}, t.styles) for t in tasks]
 
-    def _flush(done: list[ClipResult]) -> None:
-        validate_and_write(list(done) + placeholders[len(done) :], cfg.results_path)
+    def _flush(doc: list[ClipResult]) -> None:
+        # The pipeline already delivers a complete, input-ordered document
+        # (finished tasks real, pending tasks placeholder-empty).
+        validate_and_write(list(doc), cfg.results_path)
 
     try:
-        _flush([])
+        _flush(placeholders)
     except Exception as exc:  # noqa: BLE001 - pre-write is best-effort
         logger.exception("Pre-write of results.json failed: %s", exc)
 
